@@ -1,0 +1,26 @@
+# Rust / Tauri Build
+frontend/src-tauri/target/
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/dist/
+backend/build/
+backend/*.spec
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Signing Keys (NIEMALS auf GitHub!)
+*.key
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
