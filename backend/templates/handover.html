@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #1d1d1f; padding: 40px; }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #1d1d1f;
+    margin-bottom: 28px;
+  }
+
+  .company-info h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .company-info p  { font-size: 11px; color: #6e6e73; margin-top: 4px; }
+
+  .doc-title {
+    text-align: right;
+  }
+  .doc-title h2 { font-size: 16px; font-weight: 600; color: #1d1d1f; }
+  .doc-title .ref { font-size: 20px; font-weight: 700; letter-spacing: 1px; color: #0071e3; margin-top: 4px; }
+  .doc-title .date { font-size: 11px; color: #6e6e73; margin-top: 4px; }
+
+  {% if company_logo %}
+  .company-logo { max-height: 60px; max-width: 180px; margin-bottom: 8px; }
+  {% endif %}
+
+  .section {
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6e6e73;
+    margin-bottom: 10px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e8e8ed;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  .info-item label {
+    display: block;
+    font-size: 10px;
+    color: #98989f;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .info-item value {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d1d1f;
+  }
+
+  .signature-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e8e8ed;
+  }
+
+  .signature-box {
+    display: flex;
+    align-items: flex-end;
+    gap: 40px;
+    margin-top: 16px;
+  }
+
+  .sig-img-wrap {
+    border: 1px solid #e8e8ed;
+    border-radius: 8px;
+    padding: 8px;
+    background: #f9f9fb;
+  }
+
+  .sig-img-wrap img {
+    max-height: 80px;
+    max-width: 240px;
+    display: block;
+  }
+
+  .sig-meta label {
+    font-size: 10px;
+    color: #98989f;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .sig-meta .sig-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .sig-meta .sig-time {
+    font-size: 10px;
+    color: #6e6e73;
+  }
+
+  .footer {
+    margin-top: 40px;
+    padding-top: 12px;
+    border-top: 1px solid #e8e8ed;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #98989f;
+  }
+
+  .stamp {
+    display: inline-block;
+    border: 2px solid #28c840;
+    color: #28c840;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 4px;
+    transform: rotate(-3deg);
+    margin-top: 8px;
+  }
+
+  {% if not signature_png %}
+  .stamp { border-color: #ff9500; color: #ff9500; }
+  {% endif %}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="company-info">
+    {% if company_logo %}
+    <img class="company-logo" src="data:image/png;base64,{{ company_logo }}" alt="Logo">
+    {% endif %}
+    <h1>{{ company_name }}</h1>
+    <p>{{ company_address }}</p>
+  </div>
+  <div class="doc-title">
+    <h2>Übergabeprotokoll</h2>
+    <div class="ref">{{ referenz }}</div>
+    <div class="date">{{ datum }}</div>
+  </div>
+</div>
+
+<!-- SPEDITEUR -->
+<div class="section">
+  <div class="section-title">Spediteur & Fahrzeug</div>
+  <div class="info-grid">
+    <div class="info-item">
+      <label>Spedition</label>
+      <value>{{ carrier_name }}</value>
+    </div>
+    <div class="info-item">
+      <label>LKW-Kennzeichen</label>
+      <value>{{ truck_plate }}</value>
+    </div>
+    <div class="info-item">
+      <label>Fahrer</label>
+      <value>{{ driver_name }}</value>
+    </div>
+  </div>
+</div>
+
+<!-- UNTERSCHRIFT -->
+<div class="signature-section">
+  <div class="section-title">Empfangsbestätigung</div>
+
+  {% if signature_png %}
+  <div class="signature-box">
+    <div class="sig-img-wrap">
+      <img src="{{ signature_png }}" alt="Unterschrift">
+    </div>
+    <div class="sig-meta">
+      <label>Unterzeichnet von</label>
+      <div class="sig-name">{{ driver_name }}</div>
+      <label>Zeitstempel</label>
+      <div class="sig-time">{{ signed_at }}</div>
+      <div class="stamp">✓ Archiviert</div>
+    </div>
+  </div>
+  {% else %}
+  <p style="color:#ff9500;font-size:12px;">⚠ Noch nicht unterzeichnet</p>
+  <div class="stamp">Ausstehend</div>
+  {% endif %}
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span>Erstellt mit HandOver · shoriu.com/handover</span>
+  <span>{{ company_name }} · {{ datum }}</span>
+  <span>Referenz: {{ referenz }}</span>
+</div>
+
+</body>
+</html>

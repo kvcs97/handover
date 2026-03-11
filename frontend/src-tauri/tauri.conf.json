@@ -1,0 +1,53 @@
+{
+  "productName": "HandOver",
+  "version": "1.0.0",
+  "identifier": "com.shoriu.handover",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "HandOver",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 600,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Shoriu",
+    "copyright": "© 2026 Shoriu",
+    "category": "Business"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI3NkVCQzQ0MTc3MkE2NkMKUldSc3BuSVhSTHh1dDFsd21vZTMvME8wTXl6ZU50dUE2R2dZWGdmUjF1dC9JM3o1NHBrN0x6c0MK",
+      "endpoints": [
+        "https://github.com/kvcs97/handover/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
