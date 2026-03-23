@@ -8,8 +8,10 @@ on:
 jobs:
   release:
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -24,31 +26,44 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Python dependencies
+      - name: Install GTK (WeasyPrint)
         run: |
-          cd backend
+          choco install gtk-runtime -y
+        shell: powershell
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
           pip install -r requirements.txt
 
       - name: Build Python backend
+        working-directory: backend
         run: |
-          cd backend
-          pip install pyinstaller
+          pip install pyinstaller==6.19.0
           pyinstaller --onefile --name handover-backend main.py
-          copy dist\handover-backend.exe ..\frontend\src-tauri\
+
+      - name: Copy backend to Tauri
+        run: |
+          copy backend\dist\handover-backend.exe frontend\src-tauri\handover-backend.exe
+        shell: cmd
 
       - name: Install frontend dependencies
-        run: |
-          cd frontend
-          npm install
+        working-directory: frontend
+        run: npm install
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: frontend
           tagName: ${{ github.ref_name }}
-          releaseName: "HandOver ${{ github.ref_name }}"
-          releaseBody: "Neue Version von HandOver"
+          releaseName: 'HandOver ${{ github.ref_name }}'
+          releaseBody: |
+            ## HandOver ${{ github.ref_name }}
+            
+            Neues Update verfügbar — automatische Installation über den Update-Banner in der App.
           releaseDraft: false
+          prerelease: false
