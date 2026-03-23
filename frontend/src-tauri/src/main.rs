@@ -15,7 +15,7 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<serde_json::Value, S
             "available": true,
             "version": update.version,
             "body": update.body,
-            "date": update.date,
+            "date": update.date.map(|d| d.to_string()),
         })),
         Ok(None) => Ok(serde_json::json!({ "available": false })),
         Err(e) => Err(e.to_string()),
