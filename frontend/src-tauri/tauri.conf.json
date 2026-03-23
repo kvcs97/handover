@@ -1,6 +1,6 @@
 {
   "productName": "HandOver",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "identifier": "com.shoriu.handover",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -40,9 +40,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI3NkVCQzQ0MTc3MkE2NkMKUldSc3BuSVhSTHh1dDFsd21vZTMvME8wTXl6ZU50dUE2R2dZWGdmUjF1dC9JM3o1NHBrN0x6c0MK",
+      "pubkey": "REPLACE_WITH_YOUR_PUBLIC_KEY",
       "endpoints": [
-        "https://github.com/kvcs97/handover/releases/latest/download/latest.json"
+        "https://github.com/DEIN_USERNAME/handover/releases/latest/download/latest.json"
       ],
       "dialog": false,
       "windows": {

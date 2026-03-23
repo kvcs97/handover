@@ -1,87 +1,70 @@
 <template>
-  <div class="login-root">
+  <div class="login-wrap">
 
-    <!-- Left: Branding Panel -->
-    <div class="brand-panel">
-      <div class="brand-inner">
-        <div class="brand-logo">
-          <span class="logo-mark">H</span>
-        </div>
-        <div class="brand-text">
-          <h1 class="brand-name">HandOver</h1>
-          <p class="brand-by">by Shoriu</p>
-        </div>
-        <div class="brand-tagline">
-          <p>Abholen.</p>
-          <p>Unterschreiben.</p>
-          <p class="tagline-em">Fertig.</p>
-        </div>
-        <div class="brand-steps">
-          <div class="step" v-for="(s, i) in steps" :key="i" :style="`animation-delay:${0.6 + i*0.12}s`">
-            <span class="step-icon">{{ s.icon }}</span>
-            <span class="step-label">{{ s.label }}</span>
+    <!-- Left Panel -->
+    <div class="left-panel">
+      <div class="left-content">
+        <div class="brand">
+          <div class="brand-logo">
+            <svg viewBox="0 0 20 20" fill="none">
+              <path d="M4 4v12M16 4v12M4 10h12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-name">HandOver</div>
+            <div class="brand-by">by Shoriu</div>
           </div>
         </div>
+        <div class="left-body">
+          <h1 class="left-title">Abholen.<br>Unterschreiben.<br><em>Fertig.</em></h1>
+          <p class="left-sub">Der komplette Übergabe-Workflow in unter 60 Sekunden.</p>
+        </div>
+        <div class="left-footer">© 2026 Shoriu · 書流</div>
       </div>
-      <div class="brand-footer">shoriu.com/handover</div>
     </div>
 
-    <!-- Right: Login Form -->
-    <div class="form-panel">
-      <div class="form-inner">
+    <!-- Right Panel -->
+    <div class="right-panel">
+      <div class="login-card">
+        <h2 class="login-title">Willkommen zurück</h2>
+        <p class="login-sub">Melde dich mit deinem Account an</p>
 
-        <div class="form-header">
-          <h2 class="form-title">Anmelden</h2>
-          <p class="form-subtitle">Willkommen zurück</p>
-        </div>
-
-        <form class="form" @submit.prevent="handleLogin">
-
-          <div class="field" :class="{ error: errors.email }">
+        <div class="fields">
+          <div class="field">
             <label>E-Mail</label>
             <input
               v-model="email"
               type="email"
+              class="input"
               placeholder="name@firma.ch"
-              autocomplete="email"
-              @input="errors.email = ''"
+              @keyup.enter="login"
+              :disabled="loading"
             />
-            <span class="field-error" v-if="errors.email">{{ errors.email }}</span>
           </div>
-
-          <div class="field" :class="{ error: errors.password }">
+          <div class="field">
             <label>Passwort</label>
-            <div class="password-wrap">
+            <div class="pw-wrap">
               <input
                 v-model="password"
                 :type="showPw ? 'text' : 'password'"
+                class="input"
                 placeholder="••••••••"
-                autocomplete="current-password"
-                @input="errors.password = ''"
+                @keyup.enter="login"
+                :disabled="loading"
               />
               <button type="button" class="pw-toggle" @click="showPw = !showPw">
                 {{ showPw ? '🙈' : '👁️' }}
               </button>
             </div>
-            <span class="field-error" v-if="errors.password">{{ errors.password }}</span>
           </div>
-
-          <div class="form-error" v-if="loginError">
-            {{ loginError }}
-          </div>
-
-          <button class="btn-login" :class="{ loading }" :disabled="loading" type="submit">
-            <span v-if="!loading">Anmelden</span>
-            <span v-else class="spinner"></span>
-          </button>
-
-        </form>
-
-        <div class="form-hint">
-          <span>Kein Zugang?</span>
-          <span>Administrator kontaktieren.</span>
         </div>
 
+        <div class="error-box" v-if="error">{{ error }}</div>
+
+        <button class="btn-login" @click="login" :disabled="loading || !email || !password">
+          <span v-if="!loading">Anmelden</span>
+          <span v-else class="spinner"></span>
+        </button>
       </div>
     </div>
 
@@ -93,305 +76,105 @@ import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
+const email    = ref('')
+const password = ref('')
+const loading  = ref(false)
+const error    = ref('')
+const showPw   = ref(false)
 
-const email      = ref('')
-const password   = ref('')
-const showPw     = ref(false)
-const loading    = ref(false)
-const loginError = ref('')
-const errors     = ref({ email: '', password: '' })
-
-const steps = [
-  { icon: '⌨️', label: 'Referenz eingeben' },
-  { icon: '⚡', label: 'Daten geladen' },
-  { icon: '🖨️', label: 'Auto-Druck' },
-  { icon: '✍️', label: 'Unterschrift' },
-  { icon: '📁', label: 'Archiviert' },
-]
-
-async function handleLogin() {
-  errors.value = { email: '', password: '' }
-  loginError.value = ''
-
-  if (!email.value)    { errors.value.email    = 'E-Mail ist erforderlich'; return }
-  if (!password.value) { errors.value.password = 'Passwort ist erforderlich'; return }
-
-  loading.value = true
+async function login() {
+  if (!email.value || !password.value) return
+  loading.value = true; error.value = ''
   try {
     await authStore.login(email.value, password.value)
   } catch (e) {
-    loginError.value = e.response?.data?.detail || 'Anmeldung fehlgeschlagen'
-  } finally {
-    loading.value = false
-  }
+    error.value = e.response?.data?.detail || 'Anmeldung fehlgeschlagen'
+  } finally { loading.value = false }
 }
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-.login-root {
-  display: flex;
-  height: 100vh;
-  font-family: 'DM Sans', sans-serif;
+.login-wrap { display: flex; height: 100vh; font-family: 'DM Sans', sans-serif; }
+
+/* Left */
+.left-panel {
+  width: 420px; flex-shrink: 0;
+  background: linear-gradient(145deg, #1c1c1e 0%, #2c1a1f 100%);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
 }
-
-/* ── Brand Panel ─────────────────────────────── */
-.brand-panel {
-  width: 420px;
-  flex-shrink: 0;
-  background: #1d1d1f;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 56px 48px;
-  position: relative;
-  overflow: hidden;
+.left-panel::before {
+  content: '書';
+  position: absolute; bottom: -40px; right: -40px;
+  font-size: 280px; color: rgba(255,255,255,0.03);
+  font-family: serif; pointer-events: none;
 }
+.left-content { padding: 48px; display: flex; flex-direction: column; height: 100%; width: 100%; }
 
-.brand-panel::before {
-  content: '';
-  position: absolute;
-  top: -120px; right: -120px;
-  width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(0,113,227,0.15) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.brand-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
-}
-
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: auto; }
 .brand-logo {
-  width: 52px; height: 52px;
-  background: #0071e3;
-  border-radius: 14px;
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, #f2a7b8, #c0546a);
   display: flex; align-items: center; justify-content: center;
-  animation: fadeUp 0.6s ease forwards;
+  box-shadow: 0 4px 12px rgba(192,84,106,0.4);
 }
-.logo-mark {
+.brand-logo svg { width: 18px; height: 18px; }
+.brand-name { font-family: 'Instrument Serif', serif; font-size: 18px; color: white; letter-spacing: -0.3px; }
+.brand-by   { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 1px; }
+
+.left-body { margin: auto 0; }
+.left-title {
   font-family: 'Instrument Serif', serif;
-  font-size: 28px;
-  color: white;
-  line-height: 1;
+  font-size: 44px; font-weight: 400; color: white;
+  letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 16px;
 }
+.left-title em { font-style: italic; color: #f2a7b8; }
+.left-sub { font-size: 15px; color: rgba(255,255,255,0.45); font-weight: 300; line-height: 1.6; }
+.left-footer { font-size: 12px; color: rgba(255,255,255,0.2); margin-top: auto; }
 
-.brand-text {
-  animation: fadeUp 0.6s ease 0.1s both;
+/* Right */
+.right-panel {
+  flex: 1; background: #f2f2f7;
+  display: flex; align-items: center; justify-content: center; padding: 48px;
 }
-.brand-name {
-  font-family: 'Instrument Serif', serif;
-  font-size: 36px;
-  font-weight: 400;
-  color: white;
-  letter-spacing: -1px;
-  line-height: 1;
+.login-card {
+  background: white; border-radius: 20px; padding: 40px;
+  width: 100%; max-width: 400px;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05);
 }
-.brand-by {
-  font-size: 13px;
-  color: #6e6e73;
-  margin-top: 4px;
-  letter-spacing: 0.02em;
-}
+.login-title { font-family: 'Instrument Serif', serif; font-size: 28px; font-weight: 400; color: #1c1c1e; letter-spacing: -0.5px; margin-bottom: 4px; }
+.login-sub   { font-size: 14px; color: #98989f; font-weight: 300; margin-bottom: 28px; }
 
-.brand-tagline {
-  animation: fadeUp 0.6s ease 0.2s both;
+.fields { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+.field  { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; font-weight: 600; color: #1c1c1e; text-transform: uppercase; letter-spacing: 0.05em; }
+.input {
+  padding: 12px 16px; border: 1.5px solid #e8e8ed; border-radius: 11px;
+  font-family: 'DM Sans', sans-serif; font-size: 15px; color: #1c1c1e;
+  outline: none; background: white; transition: border-color 0.2s, box-shadow 0.2s; width: 100%;
 }
-.brand-tagline p {
-  font-family: 'Instrument Serif', serif;
-  font-size: 28px;
-  font-weight: 400;
-  color: rgba(255,255,255,0.5);
-  line-height: 1.3;
-  letter-spacing: -0.5px;
-}
-.tagline-em {
-  color: white !important;
-  font-style: italic;
-}
+.input:focus { border-color: #c0546a; box-shadow: 0 0 0 3px rgba(192,84,106,0.1); }
+.input:disabled { background: #f5f5f7; }
+.pw-wrap { position: relative; }
+.pw-wrap .input { padding-right: 44px; }
+.pw-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 16px; }
 
-.brand-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.step {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  animation: fadeUp 0.5s ease both;
-  opacity: 0;
-}
-.step-icon {
-  font-size: 16px;
-  width: 32px; height: 32px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-}
-.step-label {
-  font-size: 13px;
-  color: rgba(255,255,255,0.55);
-  font-weight: 300;
-}
-
-.brand-footer {
-  font-size: 11px;
-  color: #3a3a3c;
-  letter-spacing: 0.04em;
-}
-
-/* ── Form Panel ──────────────────────────────── */
-.form-panel {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f5f7;
-}
-
-.form-inner {
-  width: 100%;
-  max-width: 380px;
-  padding: 0 24px;
-  animation: fadeUp 0.7s ease 0.3s both;
-}
-
-.form-header {
-  margin-bottom: 40px;
-}
-.form-title {
-  font-family: 'Instrument Serif', serif;
-  font-size: 36px;
-  font-weight: 400;
-  color: #1d1d1f;
-  letter-spacing: -1px;
-  line-height: 1;
-}
-.form-subtitle {
-  font-size: 15px;
-  color: #6e6e73;
-  margin-top: 6px;
-  font-weight: 300;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.field label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #1d1d1f;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-.field input {
-  width: 100%;
-  padding: 13px 16px;
-  border: 1.5px solid #e8e8ed;
-  border-radius: 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px;
-  color: #1d1d1f;
-  background: white;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.field input:focus {
-  border-color: #0071e3;
-  box-shadow: 0 0 0 3px rgba(0,113,227,0.12);
-}
-.field.error input {
-  border-color: #ff3b30;
-}
-.field-error {
-  font-size: 12px;
-  color: #ff3b30;
-}
-
-.password-wrap {
-  position: relative;
-}
-.password-wrap input {
-  padding-right: 44px;
-}
-.pw-toggle {
-  position: absolute;
-  right: 12px; top: 50%;
-  transform: translateY(-50%);
-  background: none; border: none;
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  padding: 4px;
-}
-
-.form-error {
-  background: #fff2f0;
-  border: 1px solid #ffccc7;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 13px;
-  color: #ff3b30;
-}
+.error-box { background: rgba(255,59,48,0.07); border: 1px solid rgba(255,59,48,0.2); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #c0392b; margin-bottom: 16px; }
 
 .btn-login {
-  width: 100%;
-  padding: 14px;
-  background: #1d1d1f;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 50px;
-  margin-top: 4px;
+  width: 100%; padding: 13px;
+  background: linear-gradient(135deg, #e8849a, #c0546a);
+  color: white; border: none; border-radius: 12px;
+  font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500;
+  cursor: pointer; transition: opacity 0.2s;
+  box-shadow: 0 2px 12px rgba(192,84,106,0.3);
+  display: flex; align-items: center; justify-content: center; min-height: 48px;
 }
-.btn-login:hover:not(:disabled) {
-  background: #000;
-  transform: translateY(-1px);
-}
-.btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-login:hover:not(:disabled) { opacity: 0.9; }
+.btn-login:disabled { opacity: 0.45; cursor: not-allowed; }
+.spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
 
-.spinner {
-  width: 18px; height: 18px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-.form-hint {
-  margin-top: 28px;
-  display: flex;
-  gap: 4px;
-  font-size: 13px;
-  color: #98989f;
-  justify-content: center;
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

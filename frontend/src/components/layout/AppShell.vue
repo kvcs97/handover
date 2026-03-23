@@ -1,11 +1,14 @@
 <template>
   <div class="shell">
 
-    <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-top">
         <div class="sidebar-brand">
-          <div class="sidebar-logo">H</div>
+          <div class="sidebar-logo">
+            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 4v12M16 4v12M4 10h12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
           <div class="sidebar-brand-text">
             <span class="sidebar-name">HandOver</span>
             <span class="sidebar-sub">{{ settingsStore.companyName }}</span>
@@ -13,8 +16,9 @@
         </div>
 
         <nav class="sidebar-nav">
+          <div class="nav-group-label">Workflow</div>
           <button
-            v-for="item in navItems"
+            v-for="item in workflowItems"
             :key="item.page"
             class="nav-item"
             :class="{ active: currentPage === item.page, disabled: item.role && !hasRole(item.role) }"
@@ -22,26 +26,36 @@
           >
             <span class="nav-icon">{{ item.icon }}</span>
             <span class="nav-label">{{ item.label }}</span>
-            <span class="nav-badge" v-if="item.badge">{{ item.badge }}</span>
+          </button>
+
+          <div class="nav-group-label" style="margin-top:16px">Verwaltung</div>
+          <button
+            v-for="item in adminItems"
+            :key="item.page"
+            class="nav-item"
+            :class="{ active: currentPage === item.page, disabled: item.role && !hasRole(item.role) }"
+            @click="navigate(item)"
+          >
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label">{{ item.label }}</span>
           </button>
         </nav>
       </div>
 
       <div class="sidebar-bottom">
         <div class="user-chip">
-          <div class="user-avatar">{{ authStore.userName?.charAt(0) }}</div>
+          <div class="user-avatar">{{ authStore.userName?.charAt(0)?.toUpperCase() }}</div>
           <div class="user-info">
             <span class="user-name">{{ authStore.userName }}</span>
             <span class="user-role">{{ roleLabel }}</span>
           </div>
         </div>
-        <button class="btn-logout" @click="authStore.logout()">↩</button>
+        <button class="btn-logout" @click="authStore.logout()" title="Abmelden">↩</button>
       </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="main">
-      <Dashboard  v-if="currentPage === 'dashboard'" />
+      <Dashboard    v-if="currentPage === 'dashboard'" @navigate="currentPage = $event" />
       <HandoverPage v-else-if="currentPage === 'handover'" />
       <ArchivePage  v-else-if="currentPage === 'archive'" />
       <UsersPage    v-else-if="currentPage === 'users' && authStore.isAdmin" />
@@ -53,7 +67,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useAuthStore }    from '../../stores/auth'
+import { useAuthStore }     from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
 import Dashboard    from '../../pages/Dashboard.vue'
 import HandoverPage from '../../pages/Handover.vue'
@@ -65,13 +79,15 @@ const authStore     = useAuthStore()
 const settingsStore = useSettingsStore()
 const currentPage   = ref('dashboard')
 
-const navItems = computed(() => [
+const workflowItems = [
+  { page: 'handover',  icon: '✦',  label: 'Neue Übergabe', role: 'operator' },
   { page: 'dashboard', icon: '⊞',  label: 'Dashboard' },
-  { page: 'handover',  icon: '✍️',  label: 'Übergabe starten', role: 'operator' },
-  { page: 'archive',   icon: '📁',  label: 'Archiv' },
-  { page: 'users',     icon: '👥',  label: 'Benutzer',   role: 'admin' },
-  { page: 'settings',  icon: '⚙️',  label: 'Einstellungen', role: 'admin' },
-])
+]
+const adminItems = [
+  { page: 'archive',  icon: '🗂',  label: 'Archiv' },
+  { page: 'users',    icon: '👤',  label: 'Benutzer',      role: 'admin' },
+  { page: 'settings', icon: '⚙️',  label: 'Einstellungen', role: 'admin' },
+]
 
 const roleLabel = computed(() => ({
   admin:    'Administrator',
@@ -84,7 +100,6 @@ function hasRole(required) {
   if (required === 'operator') return !authStore.isViewer
   return true
 }
-
 function navigate(item) {
   if (item.role && !hasRole(item.role)) return
   currentPage.value = item.page
@@ -92,162 +107,103 @@ function navigate(item) {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
 
 .shell {
-  display: flex;
-  height: 100vh;
+  display: flex; height: 100vh;
   font-family: 'DM Sans', sans-serif;
-  background: #f5f5f7;
+  background: #f2f2f7;
 }
 
-/* ── Sidebar ─────────────────────────────────── */
+/* ── Sidebar ── */
 .sidebar {
-  width: 240px;
-  flex-shrink: 0;
-  background: #1d1d1f;
-  display: flex;
-  flex-direction: column;
+  width: 220px; flex-shrink: 0;
+  background: #ffffff;
+  border-right: 1px solid rgba(0,0,0,0.08);
+  display: flex; flex-direction: column;
   justify-content: space-between;
-  padding: 24px 16px;
+  padding: 24px 12px;
 }
 
 .sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 8px;
-  margin-bottom: 32px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 8px; margin-bottom: 28px;
 }
 .sidebar-logo {
-  width: 36px; height: 36px;
-  background: #0071e3;
-  border-radius: 10px;
+  width: 32px; height: 32px; border-radius: 9px;
+  background: linear-gradient(135deg, #f2a7b8 0%, #c0546a 100%);
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Instrument Serif', serif;
-  font-size: 20px;
-  color: white;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(192,84,106,0.3);
 }
+.sidebar-logo svg { width: 16px; height: 16px; }
 .sidebar-name {
-  display: block;
-  font-family: 'Instrument Serif', serif;
-  font-size: 17px;
-  color: white;
-  letter-spacing: -0.3px;
+  display: block; font-family: 'Instrument Serif', serif;
+  font-size: 16px; color: #1c1c1e; letter-spacing: -0.2px;
 }
 .sidebar-sub {
-  display: block;
-  font-size: 11px;
-  color: #48484a;
-  margin-top: 1px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
+  display: block; font-size: 11px; color: #98989f;
+  margin-top: 1px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 140px;
 }
 
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.nav-group-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: #98989f;
+  padding: 0 10px; margin-bottom: 4px;
 }
 
 .nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-  transition: background 0.15s;
-  color: #98989f;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 10px;
+  border: none; background: none; cursor: pointer;
+  text-align: left; width: 100%;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 400; color: #3a3a3c;
+  margin-bottom: 1px; transition: background 0.12s;
+  position: relative;
 }
-.nav-item:hover:not(.disabled) {
-  background: rgba(255,255,255,0.06);
-  color: white;
-}
+.nav-item:hover:not(.disabled) { background: #f5f5f7; }
 .nav-item.active {
-  background: rgba(255,255,255,0.1);
-  color: white;
+  background: rgba(192,84,106,0.08);
+  color: #c0546a; font-weight: 500;
 }
-.nav-item.disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+.nav-item.active::before {
+  content: ''; position: absolute;
+  left: 0; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 20px;
+  background: linear-gradient(180deg, #f2a7b8, #c0546a);
+  border-radius: 0 3px 3px 0;
 }
-.nav-icon  { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
-.nav-label { font-size: 14px; font-weight: 400; flex: 1; }
-.nav-badge {
-  background: #0071e3;
-  color: white;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 980px;
-}
+.nav-item.disabled { opacity: 0.35; cursor: not-allowed; }
+.nav-icon  { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-label { font-size: 14px; flex: 1; }
 
-/* ── Sidebar Bottom ──────────────────────────── */
+/* ── Sidebar Bottom ── */
 .sidebar-bottom {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 8px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  margin-top: 8px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 8px 4px;
+  border-top: 1px solid rgba(0,0,0,0.06);
 }
-.user-chip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
+.user-chip { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
 .user-avatar {
-  width: 32px; height: 32px;
-  background: #2c2c2e;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: white;
-  flex-shrink: 0;
-  text-transform: uppercase;
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, #f2a7b8, #c0546a);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: white; flex-shrink: 0;
 }
 .user-name {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: white;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: block; font-size: 13px; font-weight: 500; color: #1c1c1e;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.user-role {
-  display: block;
-  font-size: 11px;
-  color: #6e6e73;
-}
+.user-role { display: block; font-size: 11px; color: #98989f; }
 .btn-logout {
-  background: none;
-  border: none;
-  color: #6e6e73;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-  transition: color 0.2s, background 0.2s;
-  flex-shrink: 0;
+  background: none; border: none; color: #98989f;
+  font-size: 16px; cursor: pointer; padding: 6px;
+  border-radius: 8px; transition: all 0.15s; flex-shrink: 0;
 }
-.btn-logout:hover { color: white; background: rgba(255,255,255,0.08); }
+.btn-logout:hover { background: #f5f5f7; color: #1c1c1e; }
 
-/* ── Main ────────────────────────────────────── */
-.main {
-  flex: 1;
-  overflow-y: auto;
-  min-width: 0;
-}
+/* ── Main ── */
+.main { flex: 1; overflow-y: auto; min-width: 0; background: #f2f2f7; }
 </style>
