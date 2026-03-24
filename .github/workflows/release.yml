@@ -61,3 +61,4 @@ jobs:
             Neues Update verfügbar — automatische Installation über den Update-Banner in der App.
           releaseDraft: false
           prerelease: false
+          includeUpdaterJson: true
