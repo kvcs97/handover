@@ -47,8 +47,17 @@ jobs:
         working-directory: frontend
         run: npm install --legacy-peer-deps
 
+      - name: Debug signing key
+        run: |
+          if ("${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" -eq "") {
+            Write-Host "ERROR: TAURI_SIGNING_PRIVATE_KEY is empty!"
+          } else {
+            Write-Host "OK: TAURI_SIGNING_PRIVATE_KEY is set (length: $("${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}".Length))"
+          }
+        shell: powershell
+
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v0.5.18
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -62,3 +71,4 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
+          updaterJsonPreferNsis: false
