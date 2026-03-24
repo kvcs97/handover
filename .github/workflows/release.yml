@@ -12,6 +12,10 @@ jobs:
   release:
     runs-on: windows-latest
 
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,19 +51,10 @@ jobs:
         working-directory: frontend
         run: npm install --legacy-peer-deps
 
-      - name: Write signing key to file
-        run: |
-          $key = "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
-          $key | Out-File -FilePath "$env:RUNNER_TEMP\signing.key" -Encoding utf8 -NoNewline
-          echo "Key written to file"
-        shell: powershell
-
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ runner.temp }}\signing.key
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: frontend
           tagName: ${{ github.ref_name }}
@@ -69,4 +64,3 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
-          updaterJsonPreferNsis: false
