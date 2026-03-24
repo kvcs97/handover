@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: windows-latest
@@ -26,15 +29,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install GTK (WeasyPrint)
-        run: |
-          choco install gtk-runtime -y
-        shell: powershell
-
       - name: Install Python dependencies
         working-directory: backend
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Build Python backend
         working-directory: backend
@@ -43,8 +40,7 @@ jobs:
           pyinstaller --onefile --name handover-backend main.py
 
       - name: Copy backend to Tauri
-        run: |
-          copy backend\dist\handover-backend.exe frontend\src-tauri\handover-backend.exe
+        run: copy backend\dist\handover-backend.exe frontend\src-tauri\handover-backend.exe
         shell: cmd
 
       - name: Install frontend dependencies
@@ -62,8 +58,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'HandOver ${{ github.ref_name }}'
           releaseBody: |
-            ## HandOver ${{ github.ref_name }}
-            
             Neues Update verfügbar — automatische Installation über den Update-Banner in der App.
           releaseDraft: false
           prerelease: false
