@@ -47,20 +47,18 @@ jobs:
         working-directory: frontend
         run: npm install --legacy-peer-deps
 
-      - name: Debug signing key
+      - name: Write signing key to file
         run: |
-          if ("${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" -eq "") {
-            Write-Host "ERROR: TAURI_SIGNING_PRIVATE_KEY is empty!"
-          } else {
-            Write-Host "OK: TAURI_SIGNING_PRIVATE_KEY is set (length: $("${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}".Length))"
-          }
+          $key = "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+          $key | Out-File -FilePath "$env:RUNNER_TEMP\signing.key" -Encoding utf8 -NoNewline
+          echo "Key written to file"
         shell: powershell
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0.5.18
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ runner.temp }}\signing.key
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: frontend
