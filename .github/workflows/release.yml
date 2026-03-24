@@ -55,7 +55,7 @@ jobs:
         shell: powershell
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0.5.18
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ runner.temp }}\signing.key
