@@ -39,11 +39,24 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![check_for_updates, install_update])
         .setup(|app| {
-            let backend_path = get_backend_path();
-            if !backend_path.is_empty() {
-                if let Ok(child) = Command::new(&backend_path).spawn() {
-                    *app.state::<BackendProcess>().0.lock().unwrap() = Some(child);
-                    std::thread::sleep(std::time::Duration::from_millis(1500));
+            // Im Release-Modus: Backend aus Resources-Ordner starten
+            #[cfg(not(debug_assertions))]
+            {
+                let resource_path = app.path()
+                    .resource_dir()
+                    .expect("Resource dir nicht gefunden")
+                    .join("handover-backend.exe");
+
+                if resource_path.exists() {
+                    match Command::new(&resource_path).spawn() {
+                        Ok(child) => {
+                            *app.state::<BackendProcess>().0.lock().unwrap() = Some(child);
+                            std::thread::sleep(std::time::Duration::from_millis(2000));
+                        }
+                        Err(e) => eprintln!("Backend konnte nicht gestartet werden: {}", e),
+                    }
+                } else {
+                    eprintln!("Backend nicht gefunden: {:?}", resource_path);
                 }
             }
             Ok(())
@@ -59,14 +72,4 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten der App");
-}
-
-fn get_backend_path() -> String {
-    if cfg!(debug_assertions) {
-        return String::new();
-    }
-    #[cfg(target_os = "windows")]
-    return String::from("handover-backend.exe");
-    #[cfg(not(target_os = "windows"))]
-    return String::from("handover-backend");
 }

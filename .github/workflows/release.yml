@@ -43,9 +43,21 @@ jobs:
           pip install pyinstaller==6.19.0
           pyinstaller --onefile --name handover-backend main.py
 
-      - name: Copy backend to Tauri
-        run: copy backend\dist\handover-backend.exe frontend\src-tauri\handover-backend.exe
+      - name: Copy backend into Tauri bundle resources
+        run: |
+          copy backend\dist\handover-backend.exe frontend\src-tauri\handover-backend.exe
         shell: cmd
+
+      - name: Verify backend exists
+        run: |
+          if (Test-Path "frontend\src-tauri\handover-backend.exe") {
+            Write-Host "OK: handover-backend.exe found"
+            Get-Item "frontend\src-tauri\handover-backend.exe" | Select-Object Name, Length
+          } else {
+            Write-Error "ERROR: handover-backend.exe NOT found!"
+            exit 1
+          }
+        shell: powershell
 
       - name: Install frontend dependencies
         working-directory: frontend
