@@ -109,6 +109,74 @@
         </div>
       </div>
 
+      <!-- ── Outlook Konfiguration ── -->
+      <div class="settings-card" v-if="form.data_source_type === 'outlook'">
+        <div class="card-title-row">
+          <span class="card-icon">📧</span>
+          <h2 class="card-title">Outlook Konfiguration</h2>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label>Verbindungstyp</label>
+            <div class="source-options">
+              <div class="source-card" :class="{ selected: form.outlook_type === 'graph' }" @click="form.outlook_type = 'graph'">
+                <span>☁️</span>
+                <div><strong>Microsoft 365</strong><p>Persönliches oder Firmen M365 Konto</p></div>
+              </div>
+              <div class="source-card" :class="{ selected: form.outlook_type === 'exchange' }" @click="form.outlook_type = 'exchange'">
+                <span>🏢</span>
+                <div><strong>Exchange Server</strong><p>Firmen-interner Exchange on-premise</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>E-Mail Adresse</label>
+            <input v-model="form.outlook_email" type="email" class="input" placeholder="name@firma.ch" />
+          </div>
+
+          <div class="field">
+            <label>Passwort</label>
+            <div class="pw-wrap">
+              <input v-model="form.outlook_password" :type="showOutlookPw ? 'text' : 'password'" class="input" placeholder="••••••••" />
+              <button type="button" class="pw-toggle" @click="showOutlookPw = !showOutlookPw">{{ showOutlookPw ? '🙈' : '👁️' }}</button>
+            </div>
+          </div>
+
+          <!-- Nur M365 -->
+          <template v-if="form.outlook_type === 'graph'">
+            <div class="field">
+              <label>Tenant ID</label>
+              <input v-model="form.outlook_tenant_id" type="text" class="input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+            </div>
+            <div class="field">
+              <label>Client ID (App Registration)</label>
+              <input v-model="form.outlook_client_id" type="text" class="input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+            </div>
+            <div class="box info">
+              <span>💡</span>
+              <div>Tenant ID und Client ID findest du im <strong>Azure Portal → App Registrations</strong>. Die App braucht die Berechtigung <code>Mail.Read</code>.</div>
+            </div>
+          </template>
+
+          <!-- Nur Exchange -->
+          <div class="field" v-if="form.outlook_type === 'exchange'">
+            <label>Exchange Server</label>
+            <input v-model="form.outlook_server" type="text" class="input" placeholder="mail.firma.ch" />
+          </div>
+
+          <!-- Verbindung testen -->
+          <div class="test-row">
+            <button class="btn-test" @click="testOutlook" :disabled="testingOutlook || !form.outlook_email">
+              <span v-if="!testingOutlook">📧 Verbindung testen</span>
+              <span v-else>Wird getestet…</span>
+            </button>
+            <span class="test-result success" v-if="outlookTestResult === 'ok'">✓ Verbindung erfolgreich</span>
+            <span class="test-result error"   v-if="outlookTestResult === 'err'">✗ Verbindung fehlgeschlagen</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Passwort ändern ── -->
       <div class="settings-card">
         <div class="card-title-row">
@@ -135,6 +203,41 @@
         </div>
       </div>
 
+      <!-- ── Lizenz ── -->
+      <div class="settings-card">
+        <div class="card-title-row">
+          <span class="card-icon">🔑</span>
+          <h2 class="card-title">Lizenz</h2>
+        </div>
+        <div class="fields">
+          <div class="license-status" v-if="licenseInfo">
+            <div class="license-valid" v-if="licenseInfo.valid">
+              <div class="license-badge valid">✓ Aktiv</div>
+              <div class="license-details">
+                <div class="meta-row"><span>Plan</span><strong>{{ licenseInfo.plan === 'complete' ? 'Complete' : 'Essential' }}</strong></div>
+                <div class="meta-row"><span>Kunde</span><strong>{{ licenseInfo.customer }}</strong></div>
+                <div class="meta-row"><span>Läuft ab</span><strong>{{ licenseInfo.expires }}</strong></div>
+                <div class="meta-row"><span>Verbleibend</span><strong :class="licenseInfo.days_left < 30 ? 'text-warn' : ''">{{ licenseInfo.days_left }} Tage</strong></div>
+              </div>
+            </div>
+            <div v-else>
+              <div class="license-badge invalid">✗ Ungültig</div>
+              <p class="license-error">{{ licenseInfo.error }}</p>
+            </div>
+          </div>
+          <div class="field">
+            <label>Lizenzschlüssel eingeben</label>
+            <input v-model="licenseKey" type="text" class="input license-input" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" />
+          </div>
+          <button class="btn-activate" @click="activateLicense" :disabled="!licenseKey || activating">
+            <span v-if="!activating">🔑 Lizenz aktivieren</span>
+            <span v-else class="spinner-sm"></span>
+          </button>
+          <div class="box error"   v-if="licenseError">⚠️ {{ licenseError }}</div>
+          <div class="box success" v-if="licenseSuccess">✅ Lizenz erfolgreich aktiviert!</div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Save Banner -->
@@ -152,9 +255,12 @@ const auth = useAuthStore()
 
 const saving      = ref(false)
 const saved       = ref(false)
-const testingPrint = ref(false)
-const testResult  = ref('')
-const showPw      = ref(false)
+const testingPrint      = ref(false)
+const testResult        = ref('')
+const showPw            = ref(false)
+const showOutlookPw     = ref(false)
+const testingOutlook    = ref(false)
+const outlookTestResult = ref('')
 const newPassword = ref('')
 const newPasswordConfirm = ref('')
 const pwChanged   = ref(false)
@@ -170,12 +276,19 @@ const form = ref({
   data_source_path: '',
   data_source_url:  '',
   data_source_key:  '',
+  outlook_type:     'graph',
+  outlook_email:    '',
+  outlook_password: '',
+  outlook_tenant_id: '',
+  outlook_client_id: '',
+  outlook_server:   '',
 })
 
 const sourceTypes = [
-  { value: 'manual', icon: '✋', label: 'Manuell',    desc: 'Daten von Hand eingeben' },
-  { value: 'csv',    icon: '📄', label: 'CSV-Export', desc: 'Aus einem Ordner lesen' },
-  { value: 'api',    icon: '🔗', label: 'API / ERP',  desc: 'Direkte Systemverbindung' },
+  { value: 'manual',  icon: '✋', label: 'Manuell',          desc: 'Daten von Hand eingeben' },
+  { value: 'csv',     icon: '📄', label: 'CSV-Export',       desc: 'Aus einem Ordner lesen' },
+  { value: 'api',     icon: '🔗', label: 'API / ERP',        desc: 'Direkte Systemverbindung' },
+  { value: 'outlook', icon: '📧', label: 'Outlook / Exchange', desc: 'PDFs direkt aus E-Mails laden' },
 ]
 
 async function loadSettings() {
@@ -234,6 +347,27 @@ async function testPrint() {
   }
 }
 
+async function testOutlook() {
+  testingOutlook.value = true
+  outlookTestResult.value = ''
+  try {
+    await api.post('/outlook/test', {
+      outlook_type:      form.value.outlook_type,
+      outlook_email:     form.value.outlook_email,
+      outlook_password:  form.value.outlook_password,
+      outlook_tenant_id: form.value.outlook_tenant_id,
+      outlook_client_id: form.value.outlook_client_id,
+      outlook_server:    form.value.outlook_server,
+    })
+    outlookTestResult.value = 'ok'
+  } catch {
+    outlookTestResult.value = 'err'
+  } finally {
+    testingOutlook.value = false
+    setTimeout(() => outlookTestResult.value = '', 4000)
+  }
+}
+
 async function changePassword() {
   pwError.value = ''
   pwChanged.value = false
@@ -252,7 +386,38 @@ async function changePassword() {
   }
 }
 
-onMounted(loadSettings)
+onMounted(async () => {
+  await loadSettings()
+  await loadLicense()
+})
+
+// ── Lizenz ────────────────────────────────────
+const licenseKey     = ref('')
+const licenseInfo    = ref(null)
+const licenseError   = ref('')
+const licenseSuccess = ref(false)
+const activating     = ref(false)
+
+async function loadLicense() {
+  try {
+    const res = await api.get('/license/status')
+    licenseInfo.value = res.data
+  } catch {}
+}
+
+async function activateLicense() {
+  licenseError.value = ''; licenseSuccess.value = false; activating.value = true
+  try {
+    const res = await api.post('/license/activate', { license_key: licenseKey.value })
+    licenseInfo.value = res.data
+    licenseSuccess.value = true
+    licenseKey.value = ''
+    setTimeout(() => licenseSuccess.value = false, 4000)
+  } catch (e) {
+    licenseError.value = e.response?.data?.detail || 'Aktivierung fehlgeschlagen'
+    setTimeout(() => licenseError.value = '', 4000)
+  } finally { activating.value = false }
+}
 </script>
 
 <style scoped>
@@ -329,5 +494,24 @@ onMounted(loadSettings)
 .spinner-sm { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Lizenz ── */
+.license-status { margin-bottom: 8px; }
+.license-badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 980px; margin-bottom: 12px; }
+.license-badge.valid   { background: rgba(40,167,69,0.1); color: #1a7a2e; }
+.license-badge.invalid { background: rgba(255,59,48,0.1); color: #c0392b; }
+.license-details { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.license-error { font-size: 13px; color: #c0392b; margin-top: 4px; }
+.license-input { font-family: monospace !important; letter-spacing: 0.08em; }
+.text-warn { color: #c07800; }
+.btn-activate { padding: 11px 20px; background: linear-gradient(135deg, #e8849a, #c0546a); color: white; border: none; border-radius: 11px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 10px rgba(192,84,106,0.25); align-self: flex-start; }
+.btn-activate:hover:not(:disabled) { opacity: 0.9; }
+.btn-activate:disabled { opacity: 0.4; cursor: not-allowed; }
 @keyframes spin   { to { transform: rotate(360deg); } }
 </style>
+
+<!-- Diese Zeile in der Settings.vue sourceTypes Array ergänzen:
+     { value: 'outlook', icon: '📧', label: 'Outlook / Exchange', desc: 'PDFs aus E-Mails laden' }
+
+     Und folgendes Outlook-Konfigurationsfeld nach der Datenquelle-Karte einfügen:
+-->
