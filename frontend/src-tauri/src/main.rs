@@ -39,24 +39,41 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![check_for_updates, install_update])
         .setup(|app| {
-            // Im Release-Modus: Backend aus Resources-Ordner starten
             #[cfg(not(debug_assertions))]
             {
-                let resource_path = app.path()
-                    .resource_dir()
-                    .expect("Resource dir nicht gefunden")
-                    .join("handover-backend.exe");
+                // Versuche Backend aus verschiedenen möglichen Pfaden zu starten
+                let exe_dir = std::env::current_exe()
+                    .ok()
+                    .and_then(|p| p.parent().map(|p| p.to_path_buf()));
 
-                if resource_path.exists() {
-                    match Command::new(&resource_path).spawn() {
-                        Ok(child) => {
-                            *app.state::<BackendProcess>().0.lock().unwrap() = Some(child);
-                            std::thread::sleep(std::time::Duration::from_millis(2000));
+                let resource_dir = app.path().resource_dir().ok();
+
+                let candidates: Vec<std::path::PathBuf> = vec![
+                    exe_dir.as_ref().map(|d| d.join("handover-backend.exe")),
+                    resource_dir.as_ref().map(|d| d.join("handover-backend.exe")),
+                    exe_dir.as_ref().map(|d| d.join("resources").join("handover-backend.exe")),
+                ]
+                .into_iter()
+                .flatten()
+                .collect();
+
+                let mut started = false;
+                for path in &candidates {
+                    if path.exists() {
+                        match Command::new(path).spawn() {
+                            Ok(child) => {
+                                *app.state::<BackendProcess>().0.lock().unwrap() = Some(child);
+                                std::thread::sleep(std::time::Duration::from_millis(2500));
+                                started = true;
+                                break;
+                            }
+                            Err(e) => eprintln!("Fehler beim Starten von {:?}: {}", path, e),
                         }
-                        Err(e) => eprintln!("Backend konnte nicht gestartet werden: {}", e),
                     }
-                } else {
-                    eprintln!("Backend nicht gefunden: {:?}", resource_path);
+                }
+
+                if !started {
+                    eprintln!("Backend nicht gefunden! Gesuchte Pfade: {:?}", candidates);
                 }
             }
             Ok(())
