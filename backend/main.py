@@ -1,22 +1,24 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from database import init_db
 from routers import auth, handover, carriers, settings, users
 from routers import outlook_router, license_router
 
-app = FastAPI(title="HandOver API", version="1.3.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+app = FastAPI(title="HandOver API", version="1.4.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-async def startup():
-    init_db()
 
 app.include_router(auth.router,           prefix="/auth",     tags=["Auth"])
 app.include_router(users.router,          prefix="/users",    tags=["Users"])
@@ -29,3 +31,8 @@ app.include_router(license_router.router, prefix="/license",  tags=["License"])
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")
