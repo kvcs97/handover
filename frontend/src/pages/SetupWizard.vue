@@ -120,6 +120,43 @@
               <label>API Key</label>
               <input v-model="form.data_source_key" type="password" class="input" placeholder="••••••••" />
             </div>
+
+            <!-- Outlook Felder -->
+            <template v-if="form.data_source_type === 'outlook'">
+              <div class="field">
+                <label>Verbindungstyp</label>
+                <div class="source-options">
+                  <div class="source-card" :class="{ selected: form.outlook_type === 'graph' }" @click="form.outlook_type = 'graph'">
+                    <span>☁️</span><div><strong>Microsoft 365</strong><p>M365 Konto</p></div>
+                  </div>
+                  <div class="source-card" :class="{ selected: form.outlook_type === 'exchange' }" @click="form.outlook_type = 'exchange'">
+                    <span>🏢</span><div><strong>Exchange Server</strong><p>On-premise</p></div>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label>E-Mail Adresse</label>
+                <input v-model="form.outlook_email" type="email" class="input" placeholder="name@firma.ch" />
+              </div>
+              <div class="field">
+                <label>Passwort</label>
+                <input v-model="form.outlook_password" type="password" class="input" placeholder="••••••••" />
+              </div>
+              <template v-if="form.outlook_type === 'graph'">
+                <div class="field">
+                  <label>Tenant ID</label>
+                  <input v-model="form.outlook_tenant_id" type="text" class="input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                </div>
+                <div class="field">
+                  <label>Client ID</label>
+                  <input v-model="form.outlook_client_id" type="text" class="input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                </div>
+              </template>
+              <div class="field" v-if="form.outlook_type === 'exchange'">
+                <label>Exchange Server</label>
+                <input v-model="form.outlook_server" type="text" class="input" placeholder="mail.firma.ch" />
+              </div>
+            </template>
           </div>
         </div>
 
@@ -194,6 +231,8 @@ const form = ref({
   company_name: '', company_address: '', company_logo_b64: '',
   printer_name: '', data_source_type: 'manual',
   data_source_path: '', data_source_url: '', data_source_key: '',
+  outlook_type: 'graph', outlook_email: '', outlook_password: '',
+  outlook_tenant_id: '', outlook_client_id: '', outlook_server: '',
   admin_name: '', admin_email: '', admin_password: '',
 })
 
@@ -202,9 +241,10 @@ const wizardSteps = [
   { label: 'Datenquelle' }, { label: 'Admin-Account' }, { label: 'Bereit' },
 ]
 const sourceTypes = [
-  { value: 'manual', icon: '✋', label: 'Manuell',    desc: 'Daten von Hand eingeben' },
-  { value: 'csv',    icon: '📄', label: 'CSV-Export', desc: 'Aus einem Ordner lesen' },
-  { value: 'api',    icon: '🔗', label: 'API / ERP',  desc: 'Direkte Systemverbindung' },
+  { value: 'manual',  icon: '✋', label: 'Manuell',          desc: 'Daten von Hand eingeben' },
+  { value: 'csv',     icon: '📄', label: 'CSV-Export',       desc: 'Aus einem Ordner lesen' },
+  { value: 'api',     icon: '🔗', label: 'API / ERP',        desc: 'Direkte Systemverbindung' },
+  { value: 'outlook', icon: '📧', label: 'Outlook / Exchange', desc: 'PDFs direkt aus E-Mails laden' },
 ]
 
 const pwMismatch  = computed(() => pwConfirm.value && form.value.admin_password !== pwConfirm.value)
