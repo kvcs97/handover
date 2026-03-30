@@ -31,6 +31,41 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn find_backend() -> Option<std::path::PathBuf> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    let candidates = vec![
+        // NSIS installer: neben der .exe
+        exe_dir.as_ref().map(|d| d.join("handover-backend.exe")),
+        // Resources Unterordner
+        exe_dir.as_ref().map(|d| d.join("resources").join("handover-backend.exe")),
+        // AppData Local (NSIS user install)
+        dirs_next_path("handover-backend.exe"),
+    ];
+
+    for path in candidates.into_iter().flatten() {
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    None
+}
+
+fn dirs_next_path(filename: &str) -> Option<std::path::PathBuf> {
+    // Suche auch im AppData\Local\handover Ordner
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let candidate = parent.join(filename);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(BackendProcess(Mutex::new(None)))
@@ -41,39 +76,51 @@ fn main() {
         .setup(|app| {
             #[cfg(not(debug_assertions))]
             {
-                // Versuche Backend aus verschiedenen möglichen Pfaden zu starten
+                // Alle möglichen Pfade sammeln
                 let exe_dir = std::env::current_exe()
                     .ok()
                     .and_then(|p| p.parent().map(|p| p.to_path_buf()));
 
                 let resource_dir = app.path().resource_dir().ok();
 
-                let candidates: Vec<std::path::PathBuf> = vec![
-                    exe_dir.as_ref().map(|d| d.join("handover-backend.exe")),
-                    resource_dir.as_ref().map(|d| d.join("handover-backend.exe")),
-                    exe_dir.as_ref().map(|d| d.join("resources").join("handover-backend.exe")),
-                ]
-                .into_iter()
-                .flatten()
-                .collect();
+                let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+
+                if let Some(ref d) = exe_dir {
+                    candidates.push(d.join("handover-backend.exe"));
+                    candidates.push(d.join("resources").join("handover-backend.exe"));
+                    candidates.push(d.join("_up_").join("handover-backend.exe"));
+                }
+                if let Some(ref d) = resource_dir {
+                    candidates.push(d.join("handover-backend.exe"));
+                }
+
+                // Log alle Pfade für Debugging
+                for path in &candidates {
+                    eprintln!("[HandOver] Suche Backend: {:?} — exists={}", path, path.exists());
+                }
 
                 let mut started = false;
                 for path in &candidates {
                     if path.exists() {
+                        eprintln!("[HandOver] Starte Backend: {:?}", path);
                         match Command::new(path).spawn() {
                             Ok(child) => {
                                 *app.state::<BackendProcess>().0.lock().unwrap() = Some(child);
-                                std::thread::sleep(std::time::Duration::from_millis(2500));
+                                // Warten bis Backend bereit
+                                std::thread::sleep(std::time::Duration::from_millis(3000));
                                 started = true;
+                                eprintln!("[HandOver] Backend gestartet!");
                                 break;
                             }
-                            Err(e) => eprintln!("Fehler beim Starten von {:?}: {}", path, e),
+                            Err(e) => eprintln!("[HandOver] Fehler: {}", e),
                         }
                     }
                 }
 
                 if !started {
-                    eprintln!("Backend nicht gefunden! Gesuchte Pfade: {:?}", candidates);
+                    eprintln!("[HandOver] WARNUNG: Backend nicht gefunden!");
+                    eprintln!("[HandOver] exe_dir={:?}", exe_dir);
+                    eprintln!("[HandOver] resource_dir={:?}", resource_dir);
                 }
             }
             Ok(())

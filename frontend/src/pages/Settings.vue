@@ -119,9 +119,13 @@
           <div class="field">
             <label>Verbindungstyp</label>
             <div class="source-options">
+              <div class="source-card" :class="{ selected: form.outlook_type === 'imap' }" @click="form.outlook_type = 'imap'">
+                <span>📬</span>
+                <div><strong>IMAP</strong><p>Outlook.com, Hotmail, Gmail — kein Azure nötig</p></div>
+              </div>
               <div class="source-card" :class="{ selected: form.outlook_type === 'graph' }" @click="form.outlook_type = 'graph'">
                 <span>☁️</span>
-                <div><strong>Microsoft 365</strong><p>Persönliches oder Firmen M365 Konto</p></div>
+                <div><strong>Microsoft 365</strong><p>Firmen M365 mit Azure App Registration</p></div>
               </div>
               <div class="source-card" :class="{ selected: form.outlook_type === 'exchange' }" @click="form.outlook_type = 'exchange'">
                 <span>🏢</span>
@@ -132,7 +136,7 @@
 
           <div class="field">
             <label>E-Mail Adresse</label>
-            <input v-model="form.outlook_email" type="email" class="input" placeholder="name@firma.ch" />
+            <input v-model="form.outlook_email" type="email" class="input" placeholder="name@outlook.com" />
           </div>
 
           <div class="field">
@@ -142,6 +146,24 @@
               <button type="button" class="pw-toggle" @click="showOutlookPw = !showOutlookPw">{{ showOutlookPw ? '🙈' : '👁️' }}</button>
             </div>
           </div>
+
+          <!-- IMAP -->
+          <template v-if="form.outlook_type === 'imap'">
+            <div class="box info">
+              <span>💡</span>
+              <div>
+                Für <strong>Outlook.com / Hotmail</strong>: IMAP ist standardmässig aktiviert.<br>
+                Für <strong>Gmail</strong>: "App-Passwort" unter Google-Konto → Sicherheit erstellen.<br>
+                <span v-if="form.outlook_email.includes('outlook') || form.outlook_email.includes('hotmail') || form.outlook_email.includes('live')">
+                  <strong>IMAP Server wird automatisch erkannt: outlook.office365.com</strong>
+                </span>
+              </div>
+            </div>
+            <div class="field">
+              <label>IMAP Server (optional — wird automatisch erkannt)</label>
+              <input v-model="form.outlook_imap_server" type="text" class="input" placeholder="outlook.office365.com" />
+            </div>
+          </template>
 
           <!-- Nur M365 -->
           <template v-if="form.outlook_type === 'graph'">
@@ -276,12 +298,13 @@ const form = ref({
   data_source_path: '',
   data_source_url:  '',
   data_source_key:  '',
-  outlook_type:     'graph',
+  outlook_type:     'imap',
   outlook_email:    '',
   outlook_password: '',
   outlook_tenant_id: '',
   outlook_client_id: '',
   outlook_server:   '',
+  outlook_imap_server: '',
 })
 
 const sourceTypes = [
@@ -352,12 +375,13 @@ async function testOutlook() {
   outlookTestResult.value = ''
   try {
     await api.post('/outlook/test', {
-      outlook_type:      form.value.outlook_type,
-      outlook_email:     form.value.outlook_email,
-      outlook_password:  form.value.outlook_password,
-      outlook_tenant_id: form.value.outlook_tenant_id,
-      outlook_client_id: form.value.outlook_client_id,
-      outlook_server:    form.value.outlook_server,
+      outlook_type:        form.value.outlook_type,
+      outlook_email:       form.value.outlook_email,
+      outlook_password:    form.value.outlook_password,
+      outlook_tenant_id:   form.value.outlook_tenant_id,
+      outlook_client_id:   form.value.outlook_client_id,
+      outlook_server:      form.value.outlook_server,
+      outlook_imap_server: form.value.outlook_imap_server,
     })
     outlookTestResult.value = 'ok'
   } catch {
