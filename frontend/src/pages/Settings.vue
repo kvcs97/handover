@@ -149,20 +149,47 @@
 
           <!-- IMAP -->
           <template v-if="form.outlook_type === 'imap'">
-            <div class="box info">
-              <span>💡</span>
-              <div>
-                Für <strong>Outlook.com / Hotmail</strong>: IMAP ist standardmässig aktiviert.<br>
-                Für <strong>Gmail</strong>: "App-Passwort" unter Google-Konto → Sicherheit erstellen.<br>
-                <span v-if="form.outlook_email.includes('outlook') || form.outlook_email.includes('hotmail') || form.outlook_email.includes('live')">
-                  <strong>IMAP Server wird automatisch erkannt: outlook.office365.com</strong>
-                </span>
-              </div>
+            <div class="field">
+              <label>Tenant ID</label>
+              <input v-model="form.outlook_tenant_id" type="text" class="input" placeholder="2be3b1aa-4b43-4a9e-8842-f20980919039" />
             </div>
             <div class="field">
-              <label>IMAP Server (optional — wird automatisch erkannt)</label>
-              <input v-model="form.outlook_imap_server" type="text" class="input" placeholder="outlook.office365.com" />
+              <label>Client ID</label>
+              <input v-model="form.outlook_client_id" type="text" class="input" placeholder="030d437c-961a-49a4-b088-f2f493d9b71d" />
             </div>
+
+            <!-- Login Status -->
+            <div class="oauth-status" v-if="outlookLoggedIn">
+              <span class="oauth-badge">✓ Mit Microsoft angemeldet</span>
+              <span class="oauth-email">{{ form.outlook_email }}</span>
+            </div>
+
+            <!-- Device Flow Login -->
+            <div class="device-flow" v-if="deviceFlowData">
+              <div class="box info">
+                <span>📱</span>
+                <div>
+                  <strong>Schritt 1:</strong> Gehe auf <strong>{{ deviceFlowData.verification_url }}</strong><br>
+                  <strong>Schritt 2:</strong> Code eingeben: <code class="device-code">{{ deviceFlowData.user_code }}</code><br>
+                  <strong>Schritt 3:</strong> Mit Microsoft anmelden → dann hier auf "Login bestätigen" klicken
+                </div>
+              </div>
+              <div class="device-flow-actions">
+                <button class="btn-test" @click="openDeviceUrl">🌐 Browser öffnen</button>
+                <button class="btn-save" @click="completeDeviceFlow" :disabled="completingFlow">
+                  <span v-if="!completingFlow">✓ Login bestätigen</span>
+                  <span v-else class="spinner-sm"></span>
+                </button>
+              </div>
+            </div>
+
+            <button class="btn-ms-login" @click="startMicrosoftLogin" :disabled="startingLogin || !form.outlook_email || !form.outlook_client_id">
+              <span v-if="!startingLogin">
+                <img src="https://learn.microsoft.com/en-us/azure/active-directory/develop/media/howto-add-branding-in-apps/ms-symbollockup_mssymbol_19.svg" style="width:16px;vertical-align:middle;margin-right:6px">
+                Mit Microsoft anmelden
+              </span>
+              <span v-else class="spinner-sm"></span>
+            </button>
           </template>
 
           <!-- Nur M365 -->
@@ -283,6 +310,52 @@ const showPw            = ref(false)
 const showOutlookPw     = ref(false)
 const testingOutlook    = ref(false)
 const outlookTestResult = ref('')
+const outlookLoggedIn   = ref(false)
+const deviceFlowData    = ref(null)
+const startingLogin     = ref(false)
+const completingFlow    = ref(false)
+
+async function startMicrosoftLogin() {
+  startingLogin.value = true
+  deviceFlowData.value = null
+  try {
+    const res = await api.post('/outlook/login/start', {
+      client_id: form.value.outlook_client_id,
+      tenant_id: form.value.outlook_tenant_id,
+      email:     form.value.outlook_email,
+    })
+    deviceFlowData.value = res.data
+  } catch (e) {
+    alert('Login konnte nicht gestartet werden: ' + (e.response?.data?.detail || e.message))
+  } finally {
+    startingLogin.value = false
+  }
+}
+
+function openDeviceUrl() {
+  if (deviceFlowData.value?.verification_url) {
+    window.open(deviceFlowData.value.verification_url, '_blank')
+  }
+}
+
+async function completeDeviceFlow() {
+  completingFlow.value = true
+  try {
+    await api.post('/outlook/login/complete', {
+      client_id:  form.value.outlook_client_id,
+      tenant_id:  form.value.outlook_tenant_id,
+      flow_data:  deviceFlowData.value.flow_data,
+    })
+    outlookLoggedIn.value = true
+    deviceFlowData.value  = null
+    outlookTestResult.value = 'ok'
+    setTimeout(() => outlookTestResult.value = '', 3000)
+  } catch (e) {
+    alert('Login fehlgeschlagen: ' + (e.response?.data?.detail || e.message))
+  } finally {
+    completingFlow.value = false
+  }
+}
 const newPassword = ref('')
 const newPasswordConfirm = ref('')
 const pwChanged   = ref(false)
@@ -519,7 +592,16 @@ async function activateLicense() {
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ── Lizenz ── */
+/* ── Microsoft Login ── */
+.btn-ms-login { padding: 11px 20px; background: white; border: 1.5px solid #e8e8ed; border-radius: 11px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: #1c1c1e; display: flex; align-items: center; gap: 8px; }
+.btn-ms-login:hover:not(:disabled) { border-color: #0078d4; color: #0078d4; background: rgba(0,120,212,0.04); }
+.btn-ms-login:disabled { opacity: 0.4; cursor: not-allowed; }
+.oauth-status { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(40,167,69,0.07); border: 1px solid rgba(40,167,69,0.2); border-radius: 10px; }
+.oauth-badge { font-size: 13px; font-weight: 600; color: #1a7a2e; }
+.oauth-email { font-size: 12px; color: #6e6e73; }
+.device-flow { display: flex; flex-direction: column; gap: 10px; }
+.device-flow-actions { display: flex; gap: 8px; }
+.device-code { background: #f5f5f7; padding: 2px 8px; border-radius: 6px; font-family: monospace; font-size: 15px; font-weight: 700; color: #c0546a; letter-spacing: 0.05em; }
 .license-status { margin-bottom: 8px; }
 .license-badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 980px; margin-bottom: 12px; }
 .license-badge.valid   { background: rgba(40,167,69,0.1); color: #1a7a2e; }
