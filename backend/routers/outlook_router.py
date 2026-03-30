@@ -11,19 +11,20 @@ ARCHIVE_DIR = os.path.join(os.path.expanduser("~"), ".handover", "archive")
 
 
 class SignPdfRequest(BaseModel):
-    attachments:  List[dict]
-    sign_indices: List[int]
+    attachments:   List[dict]
+    sign_indices:  List[int]
     signature_png: str
-    signer_name:  str
-    referenz:     str
+    signer_name:   str
+    referenz:      str
 
 class OutlookTestRequest(BaseModel):
-    outlook_type:      str
-    outlook_email:     str
-    outlook_password:  str
-    outlook_tenant_id: str = ""
-    outlook_client_id: str = ""
-    outlook_server:    str = ""
+    outlook_type:        str
+    outlook_email:       str
+    outlook_password:    str
+    outlook_tenant_id:   str = ""
+    outlook_client_id:   str = ""
+    outlook_server:      str = ""
+    outlook_imap_server: str = ""
 
 
 @router.get("/search/{referenz}")
@@ -36,7 +37,7 @@ def search_attachments(referenz: str, db: Session = Depends(get_db), user=Depend
         preview = [{"id": a["id"], "name": a["name"], "subject": a["subject"], "date": a["date"], "source": a["source"]} for a in attachments]
         return {"found": True, "attachments": preview}
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Outlook-Bibliothek nicht verfügbar: {e}")
+        raise HTTPException(status_code=503, detail=f"Bibliothek nicht verfügbar: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -103,41 +104,7 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
 
 @router.post("/test")
 def test_outlook_connection(data: OutlookTestRequest, user=Depends(get_current_user)):
-    try:
-        if data.outlook_type == "exchange":
-            from exchangelib import Credentials, Account, DELEGATE, Configuration
-            credentials = Credentials(data.outlook_email, data.outlook_password)
-            cfg = Configuration(server=data.outlook_server, credentials=credentials)
-            account = Account(primary_smtp_address=data.outlook_email, config=cfg, autodiscover=False, access_type=DELEGATE)
-            _ = account.inbox.total_count
-        else:
-            import msal
-            authority = f"https://login.microsoftonline.com/{data.outlook_tenant_id}"
-            app = msal.PublicClientApplication(data.outlook_client_id, authority=authority)
-            result = app.acquire_token_by_username_password(
-                username=data.outlook_email, password=data.outlook_password,
-                scopes=["https://graph.microsoft.com/Mail.Read"]
-            )
-            if "access_token" not in result:
-                raise Exception(result.get("error_description", "Auth fehlgeschlagen"))
-        return {"status": "ok"}
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Bibliothek nicht installiert: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-class OutlookTestRequestV2(BaseModel):
-    outlook_type:        str
-    outlook_email:       str
-    outlook_password:    str
-    outlook_tenant_id:   str = ""
-    outlook_client_id:   str = ""
-    outlook_server:      str = ""
-    outlook_imap_server: str = ""
-
-@router.post("/test")
-def test_outlook_connection(data: OutlookTestRequestV2, user=Depends(get_current_user)):
+    """Testet die Outlook/IMAP Verbindung"""
     try:
         if data.outlook_type == "imap":
             import imaplib
