@@ -42,7 +42,7 @@ def get_oauth_token(client_id: str, tenant_id: str, email_addr: str) -> str:
     accounts = app.get_accounts(username=email_addr)
     if accounts:
         result = app.acquire_token_silent(
-            scopes=["https://outlook.office.com/IMAP.AccessAsUser.All", "offline_access"],
+            scopes=["https://outlook.office.com/IMAP.AccessAsUser.All"],
             account=accounts[0]
         )
         if result and "access_token" in result:
@@ -50,7 +50,7 @@ def get_oauth_token(client_id: str, tenant_id: str, email_addr: str) -> str:
 
     # Device Flow starten
     flow = app.initiate_device_flow(
-        scopes=["https://outlook.office.com/IMAP.AccessAsUser.All", "offline_access"]
+        scopes=["https://outlook.office.com/IMAP.AccessAsUser.All"]
     )
     if "user_code" not in flow:
         raise Exception("Device Flow konnte nicht gestartet werden")
