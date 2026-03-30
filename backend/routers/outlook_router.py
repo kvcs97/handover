@@ -47,7 +47,7 @@ def start_oauth_login(data: OutlookLoginRequest, user=Depends(get_current_user))
         authority = f"https://login.microsoftonline.com/{data.tenant_id}"
         app = msal.PublicClientApplication(data.client_id, authority=authority)
         flow = app.initiate_device_flow(
-            scopes=["https://outlook.office.com/IMAP.AccessAsUser.All", "offline_access"]
+            scopes=["https://outlook.office.com/IMAP.AccessAsUser.All"]
         )
         if "user_code" not in flow:
             raise HTTPException(status_code=500, detail="Device Flow konnte nicht gestartet werden")
