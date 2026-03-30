@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db
-from routers.auth import get_current_user
+from database import get_db, Setting
+from routers.auth import get_current_user, require_admin
 from pydantic import BaseModel
-from typing import List
-import os, base64, tempfile
+from typing import List, Optional
+import os, base64, tempfile, json
 
 router = APIRouter()
 ARCHIVE_DIR = os.path.join(os.path.expanduser("~"), ".handover", "archive")
@@ -17,15 +17,117 @@ class SignPdfRequest(BaseModel):
     signer_name:   str
     referenz:      str
 
+class OutlookLoginRequest(BaseModel):
+    client_id:  str
+    tenant_id:  str
+    email:      str
+
+class OutlookTokenRequest(BaseModel):
+    client_id:  str
+    tenant_id:  str
+    flow_data:  str
+
 class OutlookTestRequest(BaseModel):
     outlook_type:        str
     outlook_email:       str
-    outlook_password:    str
+    outlook_password:    str = ""
     outlook_tenant_id:   str = ""
     outlook_client_id:   str = ""
     outlook_server:      str = ""
     outlook_imap_server: str = ""
 
+
+# ── OAuth2 Device Flow ────────────────────────
+
+@router.post("/login/start")
+def start_oauth_login(data: OutlookLoginRequest, user=Depends(get_current_user)):
+    """Startet OAuth2 Device Flow — gibt Login-Code und URL zurück"""
+    try:
+        import msal
+        authority = f"https://login.microsoftonline.com/{data.tenant_id}"
+        app = msal.PublicClientApplication(data.client_id, authority=authority)
+        flow = app.initiate_device_flow(
+            scopes=["https://outlook.office.com/IMAP.AccessAsUser.All", "offline_access"]
+        )
+        if "user_code" not in flow:
+            raise HTTPException(status_code=500, detail="Device Flow konnte nicht gestartet werden")
+
+        return {
+            "user_code":        flow["user_code"],
+            "verification_url": flow["verification_uri"],
+            "message":          flow["message"],
+            "flow_data":        json.dumps(flow),
+            "expires_in":       flow.get("expires_in", 900)
+        }
+    except ImportError:
+        raise HTTPException(status_code=503, detail="msal nicht installiert")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/login/complete")
+def complete_oauth_login(data: OutlookTokenRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Schliesst OAuth2 Login ab — speichert Token in DB"""
+    try:
+        import msal
+        authority = f"https://login.microsoftonline.com/{data.tenant_id}"
+        app = msal.PublicClientApplication(data.client_id, authority=authority)
+        flow = json.loads(data.flow_data)
+        result = app.acquire_token_by_device_flow(flow)
+
+        if "access_token" not in result:
+            raise HTTPException(status_code=400, detail=result.get("error_description", "Login fehlgeschlagen"))
+
+        # Token in DB speichern
+        def set_setting(key, value):
+            s = db.query(Setting).filter(Setting.key == key).first()
+            if s: s.value = value
+            else: db.add(Setting(key=key, value=value))
+
+        set_setting("outlook_access_token", result["access_token"])
+        if "refresh_token" in result:
+            set_setting("outlook_refresh_token", result["refresh_token"])
+        db.commit()
+
+        return {"status": "ok", "message": "Erfolgreich mit Microsoft angemeldet"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Verbindung testen ─────────────────────────
+
+@router.post("/test")
+def test_outlook_connection(data: OutlookTestRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    try:
+        if data.outlook_type == "exchange":
+            from exchangelib import Credentials, Account, DELEGATE, Configuration
+            credentials = Credentials(data.outlook_email, data.outlook_password)
+            cfg = Configuration(server=data.outlook_server, credentials=credentials)
+            account = Account(primary_smtp_address=data.outlook_email, config=cfg, autodiscover=False, access_type=DELEGATE)
+            _ = account.inbox.total_count
+        else:
+            # OAuth2 IMAP Test
+            token_setting = db.query(Setting).filter(Setting.key == "outlook_access_token").first()
+            if not token_setting or not token_setting.value:
+                raise Exception("Kein OAuth2 Token — bitte zuerst 'Mit Microsoft anmelden' klicken")
+
+            imap_server = data.outlook_imap_server or "outlook.office365.com"
+            auth_string = f"user={data.outlook_email}\x01auth=Bearer {token_setting.value}\x01\x01"
+            auth_b64    = base64.b64encode(auth_string.encode()).decode()
+
+            import imaplib
+            mail = imaplib.IMAP4_SSL(imap_server, 993)
+            mail.authenticate("XOAUTH2", lambda x: auth_b64)
+            mail.logout()
+
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── E-Mails suchen ────────────────────────────
 
 @router.get("/search/{referenz}")
 def search_attachments(referenz: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
@@ -36,8 +138,6 @@ def search_attachments(referenz: str, db: Session = Depends(get_db), user=Depend
             return {"found": False, "attachments": []}
         preview = [{"id": a["id"], "name": a["name"], "subject": a["subject"], "date": a["date"], "source": a["source"]} for a in attachments]
         return {"found": True, "attachments": preview}
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Bibliothek nicht verfügbar: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -66,7 +166,6 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
     except ImportError as e:
         raise HTTPException(status_code=503, detail=f"Bibliothek nicht verfügbar: {e}")
 
-    from database import Setting
     printer = db.query(Setting).filter(Setting.key == "printer_name").first()
     printer_name = printer.value if printer else ""
     results = []
@@ -77,10 +176,8 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
         if i in data.sign_indices:
             try:
                 signed_path = embed_signature_in_pdf(
-                    pdf_bytes=pdf_bytes,
-                    signature_png_base64=data.signature_png,
-                    signer_name=data.signer_name,
-                    archive_dir=ARCHIVE_DIR,
+                    pdf_bytes=pdf_bytes, signature_png_base64=data.signature_png,
+                    signer_name=data.signer_name, archive_dir=ARCHIVE_DIR,
                     filename=f"signed_{data.referenz}_{safe_name}"
                 )
                 if printer_name:
@@ -100,37 +197,3 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
                 results.append({"name": att["name"], "status": "error", "error": str(e)})
 
     return {"results": results}
-
-
-@router.post("/test")
-def test_outlook_connection(data: OutlookTestRequest, user=Depends(get_current_user)):
-    """Testet die Outlook/IMAP Verbindung"""
-    try:
-        if data.outlook_type == "imap":
-            import imaplib
-            from services.outlook_service import _get_imap_server
-            imap_server, imap_port = _get_imap_server(data.outlook_email, data.outlook_imap_server)
-            mail = imaplib.IMAP4_SSL(imap_server, imap_port)
-            mail.login(data.outlook_email, data.outlook_password)
-            mail.logout()
-        elif data.outlook_type == "exchange":
-            from exchangelib import Credentials, Account, DELEGATE, Configuration
-            credentials = Credentials(data.outlook_email, data.outlook_password)
-            cfg = Configuration(server=data.outlook_server, credentials=credentials)
-            account = Account(primary_smtp_address=data.outlook_email, config=cfg, autodiscover=False, access_type=DELEGATE)
-            _ = account.inbox.total_count
-        else:
-            import msal
-            authority = f"https://login.microsoftonline.com/{data.outlook_tenant_id}"
-            app_msal = msal.PublicClientApplication(data.outlook_client_id, authority=authority)
-            result = app_msal.acquire_token_by_username_password(
-                username=data.outlook_email, password=data.outlook_password,
-                scopes=["https://graph.microsoft.com/Mail.Read"]
-            )
-            if "access_token" not in result:
-                raise Exception(result.get("error_description", "Auth fehlgeschlagen"))
-        return {"status": "ok"}
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Bibliothek nicht installiert: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))

@@ -1,6 +1,6 @@
 {
   "productName": "HandOver",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "identifier": "com.shoriu.handover",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -29,7 +29,6 @@
     "targets": "all",
     "createUpdaterArtifacts": true,
     "resources": ["handover-backend.exe"],
-    "externalBin": [],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -39,7 +38,12 @@
     ],
     "publisher": "Shoriu",
     "copyright": "© 2026 Shoriu",
-    "category": "Business"
+    "category": "Business",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
   },
   "plugins": {
     "updater": {
