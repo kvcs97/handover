@@ -39,10 +39,7 @@
     ],
     "publisher": "Shoriu",
     "copyright": "© 2026 Shoriu",
-    "category": "Business",
-    "nsis": {
-      "installMode": "currentUser"
-    }
+    "category": "Business"
   },
   "plugins": {
     "updater": {
