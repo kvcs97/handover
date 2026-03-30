@@ -44,13 +44,14 @@ def start_oauth_login(data: OutlookLoginRequest, user=Depends(get_current_user))
     """Startet OAuth2 Device Flow — gibt Login-Code und URL zurück"""
     try:
         import msal
-        authority = f"https://login.microsoftonline.com/{data.tenant_id}"
+        authority = "https://login.microsoftonline.com/consumers"
         app = msal.PublicClientApplication(data.client_id, authority=authority)
         flow = app.initiate_device_flow(
             scopes=["https://outlook.office.com/IMAP.AccessAsUser.All"]
         )
         if "user_code" not in flow:
-            raise HTTPException(status_code=500, detail="Device Flow konnte nicht gestartet werden")
+            error_detail = flow.get("error_description") or flow.get("error") or str(flow)
+            raise HTTPException(status_code=500, detail=f"Device Flow Fehler: {error_detail}")
 
         return {
             "user_code":        flow["user_code"],
@@ -70,7 +71,7 @@ def complete_oauth_login(data: OutlookTokenRequest, db: Session = Depends(get_db
     """Schliesst OAuth2 Login ab — speichert Token in DB"""
     try:
         import msal
-        authority = f"https://login.microsoftonline.com/{data.tenant_id}"
+        authority = "https://login.microsoftonline.com/consumers"
         app = msal.PublicClientApplication(data.client_id, authority=authority)
         flow = json.loads(data.flow_data)
         result = app.acquire_token_by_device_flow(flow)
