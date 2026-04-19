@@ -98,12 +98,12 @@ def _search_imap_oauth(referenz: str, config: dict) -> list[dict]:
         raise Exception("Kein OAuth2 Token — bitte zuerst mit Microsoft anmelden")
 
     # OAuth2 IMAP Authentifizierung
-    auth_string = f"user={email_addr}\x01auth=Bearer {access_token}\x01\x01"
-    auth_b64    = base64.b64encode(auth_string.encode()).decode()
+    # imaplib.authenticate() base64-encodiert den Rückgabewert selbst — rohe Bytes zurückgeben
+    auth_bytes = f"user={email_addr}\x01auth=Bearer {access_token}\x01\x01".encode()
 
     try:
         mail = imaplib.IMAP4_SSL(imap_server, 993)
-        mail.authenticate("XOAUTH2", lambda x: auth_b64)
+        mail.authenticate("XOAUTH2", lambda x: auth_bytes)
         mail.select("INBOX")
 
         _, msg_ids = mail.search(None, f'SUBJECT "{referenz}"')
