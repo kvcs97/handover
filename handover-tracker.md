@@ -1,21 +1,20 @@
 # HandOver – Entwicklungs-Tracker
 
 **Letzte Aktualisierung:** April 2026
-**Gesamtfortschritt:** 39 / 54 Aufgaben abgeschlossen (72%)
+**Gesamtfortschritt:** 44 / 55 Aufgaben abgeschlossen (80%)
 
 ---
 
 ## 🔵 Aktueller Fokus
 
-> **Outlook IMAP E-Mail-Suche debuggen + Settings Reload Fix**
-> OAuth2 Login funktioniert, aber `_search_imap_oauth()` in `outlook_service.py` findet keine Mails. Parallel dazu leeren sich Outlook-Felder in `Settings.vue` nach Seitenwechsel. Beide Bugs müssen vor dem medmix Pilot-Abschluss gefixt werden.
+> **v1.5.3 live testen bei medmix** — IMAP-Suche, OAuth2-Token-Persistenz und PDF-Signatur alle gefixt. Nächster Schritt: Outlook E-Mail-Suche live testen + Netzwerkdrucker.
 
 ---
 
 ## ⚠️ Offene Blocker
 
-- [ ] **IMAP E-Mail-Suche** — OAuth2 Token vorhanden, `_search_imap_oauth()` in `outlook_service.py` findet keine Mails. XOAUTH2 Auth-String oder Suchbefehl prüfen.
-- [ ] **Settings Reload** — Outlook-Felder (email, client_id etc.) leeren sich nach Seitenwechsel. `loadSettings()` in `Settings.vue` gibt Outlook-Keys nicht korrekt ins form-Objekt zurück.
+- [ ] **Auto-Updater** — Banner erschien nicht bei v1.5.2→v1.5.3. Vermutlich Version-Mismatch beim v1.5.2-Build (Quell-Dateien standen auf 1.5.1). v1.5.3 manuell installiert, nächster Test mit v1.5.4.
+- [ ] **IMAP E-Mail-Suche live** — XOAUTH2-Fix + Token-Refresh implementiert, aber noch kein Live-Test mit echtem Postfach.
 
 ---
 
@@ -63,7 +62,7 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 2.3 | Spediteur-Datenbank | ✅ | Auto-Create |
 | 2.4 | Druckschritt (Step 2) | ✅ | |
 | 2.5 | Unterschrift Canvas (Step 3) | ✅ | Touch + Maus |
-| 2.6 | PDF Signatur einbetten | ✅ | pdf_sign.py, erste Seite oben rechts |
+| 2.6 | PDF Signatur einbetten | ✅ | Neue Position + Layout: Sig groß + Spediteur-Daten + Linie + Text |
 | 2.7 | Archivieren + Fertig (Step 4) | ✅ | |
 | 2.8 | Outlook PDF-Auswahl Step | ✅ | Dynamisch wenn Outlook aktiv |
 | 2.9 | PDF Vorschau Modal | ✅ | |
@@ -83,11 +82,12 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 3.5 | OAuth2 Device Flow Frontend | ✅ | "Mit Microsoft anmelden" Button |
 | 3.6 | consumers Endpoint Fix | ✅ | AADSTS9002346 gefixt |
 | 3.7 | Azure App Registration | ✅ | Client ID 030d437c... |
-| 3.8 | Settings-Felder persistent nach Reload | ❌ | loadSettings() gibt Outlook-Keys nicht zurück |
-| 3.9 | E-Mail-Suche nach Referenznummer | ❌ | _search_imap_oauth() — XOAUTH2 fehlerhaft |
-| 3.10 | PDF Anhänge herunterladen + verarbeiten | ⏳ | Abhängig von 3.9 |
+| 3.8 | Settings-Felder persistent nach Reload | ✅ | /settings/all gibt alle Outlook-Keys + outlook_logged_in Flag zurück |
+| 3.9 | E-Mail-Suche nach Referenznummer | 🔄 | XOAUTH2 double-encoding gefixt + Token-Refresh — live Test ausstehend |
+| 3.10 | OAuth2 Token-Persistenz (kein Re-Login nach Neustart) | ✅ | _refresh_access_token() via Refresh-Token, automatischer Retry bei IMAP-Fehler |
+| 3.11 | PDF Anhänge herunterladen + verarbeiten | ⏳ | Abhängig von 3.9 |
 
-**Phase-Fortschritt:** 7 / 10 (70%)
+**Phase-Fortschritt:** 8 / 11 (73%)
 
 ---
 
@@ -99,7 +99,7 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 4.3 | Datenquelle (Manual/CSV/API/Outlook) | ✅ | |
 | 4.4 | Outlook Konfigurationskarte | ✅ | IMAP/M365/Exchange |
 | 4.5 | Testdruck | ⏳ | Echter Netzwerkdrucker nötig |
-| 4.6 | Outlook Verbindung testen | 🔄 | Hängt an OAuth2-Fix |
+| 4.6 | Outlook Verbindung testen | 🔄 | XOAUTH2-Bug auch im /test-Endpoint gefixt |
 
 **Phase-Fortschritt:** 4 / 6 (67%)
 
@@ -112,9 +112,9 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 5.2 | generate_license.py Script | ✅ | Interaktiv, Shoriu-intern |
 | 5.3 | License Router | ✅ | /license/status, /activate, /check |
 | 5.4 | Lizenz-Karte in Settings.vue | ✅ | Status, Ablaufdatum, Aktivierung |
-| 5.5 | Lizenzschlüssel für medmix generieren | ⏳ | Erst wenn Pilot bereit |
+| 5.5 | Lizenzschlüssel für medmix generieren | ✅ | XL6V7-VPYM7-C5MXC-RXFAC-7XZV5 (Complete, 365T, 15 User, läuft ab 2027-04-19) |
 
-**Phase-Fortschritt:** 4 / 5 (80%)
+**Phase-Fortschritt:** 5 / 5 (100%)
 
 ---
 
@@ -139,15 +139,15 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 ### Phase 7 – Testing & Deployment
 | # | Aufgabe | Status | Notiz |
 |---|---|---|---|
-| 7.1 | Interner Pilot bei medmix | 🔄 | Setup ok, Outlook-Bugs offen |
-| 7.2 | Auto-Updater Test (v1.5.0 → v1.5.1) | ⏳ | Build fertig, Test ausstehend |
+| 7.1 | Interner Pilot bei medmix | 🔄 | v1.5.3 installiert, Outlook-Test ausstehend |
+| 7.2 | Auto-Updater Test | ❌ | Banner erschien nicht — v1.5.3 manuell installiert. Nächster Test: v1.5.4 pushen |
 | 7.3 | Netzwerkdrucker Test | ⏳ | Bei medmix vor Ort |
-| 7.4 | Lizenzschlüssel für medmix | ⏳ | |
+| 7.4 | Lizenzschlüssel für medmix | ✅ | XL6V7-VPYM7-C5MXC-RXFAC-7XZV5 |
 | 7.5 | IT-Dokumentation an medmix IT | ✅ | HandOver_IT-Dokumentation_medmix.docx |
 | 7.6 | Portable ZIP für Firmeneinsatz | ✅ | HandOver_portable.zip |
 | 7.7 | medmix als bezahlter Kunde | ⏳ | Ziel für FlexKapG Gründung |
 
-**Phase-Fortschritt:** 2 / 7 (29%)
+**Phase-Fortschritt:** 4 / 7 (57%)
 
 ---
 
@@ -162,6 +162,8 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | März 2026 | PyInstaller | .spec mit hidden imports | Uvicorn + msal müssen explizit deklariert werden |
 | April 2026 | Portable ZIP | Extra Build-Step in release.yml | Firmen-IT blockiert .exe Installer |
 | April 2026 | Claude Code | Wechsel von Claude.ai zu Claude Code | Direkter Datei-Zugriff, effizienter für Code |
+| April 2026 | Token-Refresh | _refresh_access_token() mit MSAL | MS Access Token läuft nach 1h ab — Refresh-Token für automatische Erneuerung |
+| April 2026 | PDF-Signatur Position | Feste Koordinaten (x=51, y=448, 283×136pt) | Exakte Platzierung laut medmix Dokument-Layout |
 
 ---
 
@@ -184,6 +186,8 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 9–11 | März 2026 | Outlook OAuth2, Azure App Registration | E-Mail-Suche fixen |
 | 12 | März 2026 | consumers Endpoint, Azure Platform-Fix | Settings Reload + Suche |
 | 13 | April 2026 | Portable ZIP, IT-Doku, Claude Code Briefing | E-Mail-Suche + Settings debuggen |
+| 14 | April 2026 | IMAP XOAUTH2 Fix, Settings Reload Fix, v1.5.3, medmix Lizenz | IMAP live testen + Netzwerkdrucker |
+| 15 | April 2026 | Token-Persistenz (Refresh-Token), XOAUTH2 Fix /test-Endpoint, PDF-Signatur neu (Position + Layout + Spediteur-Daten) | Auto-Updater debuggen (v1.5.4), IMAP live testen |
 
 ---
 

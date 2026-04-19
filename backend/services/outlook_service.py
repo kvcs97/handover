@@ -12,12 +12,45 @@ def get_outlook_config(db) -> dict:
     from database import Setting
     keys = ["outlook_type", "outlook_email", "outlook_password",
             "outlook_tenant_id", "outlook_client_id", "outlook_server",
-            "outlook_imap_server", "outlook_access_token"]
+            "outlook_imap_server", "outlook_access_token", "outlook_refresh_token"]
     result = {}
     for key in keys:
         s = db.query(Setting).filter(Setting.key == key).first()
         result[key] = s.value if s and s.value else ""
     return result
+
+
+def _refresh_access_token(config: dict, db) -> str:
+    """Holt neuen Access Token via gespeichertem Refresh Token"""
+    import msal
+    from database import Setting
+
+    refresh_token = config.get("outlook_refresh_token", "")
+    client_id     = config.get("outlook_client_id", "")
+
+    if not refresh_token or not client_id:
+        raise Exception("Kein Refresh-Token vorhanden — bitte erneut mit Microsoft anmelden")
+
+    app    = msal.PublicClientApplication(client_id, authority="https://login.microsoftonline.com/consumers")
+    result = app.acquire_token_by_refresh_token(
+        refresh_token,
+        scopes=["https://outlook.office.com/IMAP.AccessAsUser.All"]
+    )
+
+    if "access_token" not in result:
+        raise Exception(result.get("error_description", "Token-Refresh fehlgeschlagen — bitte erneut anmelden"))
+
+    def set_setting(key, value):
+        s = db.query(Setting).filter(Setting.key == key).first()
+        if s: s.value = value
+        else: db.add(Setting(key=key, value=value))
+
+    set_setting("outlook_access_token", result["access_token"])
+    if "refresh_token" in result:
+        set_setting("outlook_refresh_token", result["refresh_token"])
+    db.commit()
+
+    return result["access_token"]
 
 
 def search_emails_by_reference(referenz: str, db) -> list[dict]:
@@ -26,7 +59,7 @@ def search_emails_by_reference(referenz: str, db) -> list[dict]:
     if outlook_type == "exchange":
         return _search_exchange(referenz, config)
     else:
-        return _search_imap_oauth(referenz, config)
+        return _search_imap_oauth(referenz, config, db)
 
 
 def get_oauth_token(client_id: str, tenant_id: str, email_addr: str) -> str:
@@ -88,20 +121,17 @@ def complete_device_flow(client_id: str, tenant_id: str, flow_data: dict) -> str
     return result["access_token"]
 
 
-def _search_imap_oauth(referenz: str, config: dict) -> list[dict]:
-    """E-Mails via IMAP mit OAuth2 suchen"""
-    email_addr   = config["outlook_email"]
-    access_token = config.get("outlook_access_token", "")
-    imap_server  = config.get("outlook_imap_server", "") or "outlook.office365.com"
+def _search_imap_oauth(referenz: str, config: dict, db=None) -> list[dict]:
+    """E-Mails via IMAP mit OAuth2 suchen — bei abgelaufenem Token automatisch refreshen"""
+    email_addr  = config["outlook_email"]
+    imap_server = config.get("outlook_imap_server", "") or "outlook.office365.com"
 
-    if not access_token:
+    if not config.get("outlook_access_token"):
         raise Exception("Kein OAuth2 Token — bitte zuerst mit Microsoft anmelden")
 
-    # OAuth2 IMAP Authentifizierung
-    # imaplib.authenticate() base64-encodiert den Rückgabewert selbst — rohe Bytes zurückgeben
-    auth_bytes = f"user={email_addr}\x01auth=Bearer {access_token}\x01\x01".encode()
-
-    try:
+    def _do_search(token: str) -> list[dict]:
+        # imaplib.authenticate() base64-encodiert den Rückgabewert selbst — rohe Bytes zurückgeben
+        auth_bytes = f"user={email_addr}\x01auth=Bearer {token}\x01\x01".encode()
         mail = imaplib.IMAP4_SSL(imap_server, 993)
         mail.authenticate("XOAUTH2", lambda x: auth_bytes)
         mail.select("INBOX")
@@ -128,8 +158,14 @@ def _search_imap_oauth(referenz: str, config: dict) -> list[dict]:
         mail.logout()
         return attachments
 
-    except imaplib.IMAP4.error as e:
-        raise Exception(f"IMAP OAuth2 Fehler: {e} — Token möglicherweise abgelaufen")
+    try:
+        return _do_search(config["outlook_access_token"])
+    except imaplib.IMAP4.error:
+        # Token abgelaufen — automatisch refreshen und nochmal versuchen
+        if db:
+            new_token = _refresh_access_token(config, db)
+            return _do_search(new_token)
+        raise Exception("IMAP OAuth2 Fehler: Token abgelaufen — bitte erneut anmelden")
 
 
 def _search_exchange(referenz: str, config: dict) -> list[dict]:

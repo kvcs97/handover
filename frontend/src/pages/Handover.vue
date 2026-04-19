@@ -391,6 +391,8 @@ async function submitSignature() {
         signature_png: pngData,
         signer_name:   driverName.value || 'Unbekannt',
         referenz:      referenz.value,
+        carrier_name:  carrierSearch.value || '',
+        truck_plate:   truckPlate.value || '',
       })
       signedPdfs.value = res.data.results.filter(r => r.status === 'signed')
     }

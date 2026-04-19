@@ -16,6 +16,8 @@ class SignPdfRequest(BaseModel):
     signature_png: str
     signer_name:   str
     referenz:      str
+    carrier_name:  Optional[str] = ""
+    truck_plate:   Optional[str] = ""
 
 class OutlookLoginRequest(BaseModel):
     client_id:  str
@@ -115,12 +117,11 @@ def test_outlook_connection(data: OutlookTestRequest, db: Session = Depends(get_
                 raise Exception("Kein OAuth2 Token — bitte zuerst 'Mit Microsoft anmelden' klicken")
 
             imap_server = data.outlook_imap_server or "outlook.office365.com"
-            auth_string = f"user={data.outlook_email}\x01auth=Bearer {token_setting.value}\x01\x01"
-            auth_b64    = base64.b64encode(auth_string.encode()).decode()
+            auth_bytes  = f"user={data.outlook_email}\x01auth=Bearer {token_setting.value}\x01\x01".encode()
 
             import imaplib
             mail = imaplib.IMAP4_SSL(imap_server, 993)
-            mail.authenticate("XOAUTH2", lambda x: auth_b64)
+            mail.authenticate("XOAUTH2", lambda x: auth_bytes)
             mail.logout()
 
         return {"status": "ok"}
@@ -179,7 +180,9 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
                 signed_path = embed_signature_in_pdf(
                     pdf_bytes=pdf_bytes, signature_png_base64=data.signature_png,
                     signer_name=data.signer_name, archive_dir=ARCHIVE_DIR,
-                    filename=f"signed_{data.referenz}_{safe_name}"
+                    filename=f"signed_{data.referenz}_{safe_name}",
+                    carrier_name=data.carrier_name or "",
+                    truck_plate=data.truck_plate or "",
                 )
                 if printer_name:
                     try: print_document(signed_path, printer_name=printer_name)
