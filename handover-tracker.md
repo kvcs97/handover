@@ -1,19 +1,19 @@
 # HandOver – Entwicklungs-Tracker
 
 **Letzte Aktualisierung:** April 2026
-**Gesamtfortschritt:** 44 / 55 Aufgaben abgeschlossen (80%)
+**Gesamtfortschritt:** 45 / 55 Aufgaben abgeschlossen (82%)
 
 ---
 
 ## 🔵 Aktueller Fokus
 
-> **v1.5.3 live testen bei medmix** — IMAP-Suche, OAuth2-Token-Persistenz und PDF-Signatur alle gefixt. Nächster Schritt: Outlook E-Mail-Suche live testen + Netzwerkdrucker.
+> **v1.5.6 morgen testen bei medmix** — Auto-Updater funktioniert (war privates Repo), PDF-Signatur-Position angepasst. Nächster Schritt: PDF-Position bestätigen, IMAP live testen, Netzwerkdrucker.
 
 ---
 
 ## ⚠️ Offene Blocker
 
-- [ ] **Auto-Updater** — Banner erschien nicht bei v1.5.2→v1.5.3. Vermutlich Version-Mismatch beim v1.5.2-Build (Quell-Dateien standen auf 1.5.1). v1.5.3 manuell installiert, nächster Test mit v1.5.4.
+- [ ] **PDF-Signatur Position** — Auf 355pt von oben gesetzt (~125mm), morgen live auf Lieferschein prüfen ob Position passt.
 - [ ] **IMAP E-Mail-Suche live** — XOAUTH2-Fix + Token-Refresh implementiert, aber noch kein Live-Test mit echtem Postfach.
 
 ---
@@ -62,7 +62,7 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 2.3 | Spediteur-Datenbank | ✅ | Auto-Create |
 | 2.4 | Druckschritt (Step 2) | ✅ | |
 | 2.5 | Unterschrift Canvas (Step 3) | ✅ | Touch + Maus |
-| 2.6 | PDF Signatur einbetten | ✅ | Neue Position + Layout: Sig groß + Spediteur-Daten + Linie + Text |
+| 2.6 | PDF Signatur einbetten | 🔄 | Position auf 355pt von oben (~125mm) — morgen live testen ob es passt |
 | 2.7 | Archivieren + Fertig (Step 4) | ✅ | |
 | 2.8 | Outlook PDF-Auswahl Step | ✅ | Dynamisch wenn Outlook aktiv |
 | 2.9 | PDF Vorschau Modal | ✅ | |
@@ -140,7 +140,7 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | # | Aufgabe | Status | Notiz |
 |---|---|---|---|
 | 7.1 | Interner Pilot bei medmix | 🔄 | v1.5.3 installiert, Outlook-Test ausstehend |
-| 7.2 | Auto-Updater Test | ❌ | Banner erschien nicht — v1.5.3 manuell installiert. Nächster Test: v1.5.4 pushen |
+| 7.2 | Auto-Updater Test | ✅ | Funktioniert — Ursache war privates Repo (assets nicht öffentlich). Repo public gestellt, v1.5.5 Fix: Backend wird vor Install gestoppt |
 | 7.3 | Netzwerkdrucker Test | ⏳ | Bei medmix vor Ort |
 | 7.4 | Lizenzschlüssel für medmix | ✅ | XL6V7-VPYM7-C5MXC-RXFAC-7XZV5 |
 | 7.5 | IT-Dokumentation an medmix IT | ✅ | HandOver_IT-Dokumentation_medmix.docx |
@@ -188,6 +188,7 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 13 | April 2026 | Portable ZIP, IT-Doku, Claude Code Briefing | E-Mail-Suche + Settings debuggen |
 | 14 | April 2026 | IMAP XOAUTH2 Fix, Settings Reload Fix, v1.5.3, medmix Lizenz | IMAP live testen + Netzwerkdrucker |
 | 15 | April 2026 | Token-Persistenz (Refresh-Token), XOAUTH2 Fix /test-Endpoint, PDF-Signatur neu (Position + Layout + Spediteur-Daten) | Auto-Updater debuggen (v1.5.4), IMAP live testen |
+| 16 | April 2026 | Auto-Updater gefixt (Repo public, Backend-Kill vor Install), PDF-Position angepasst (355pt), v1.5.5+v1.5.6 | PDF-Position morgen bestätigen, IMAP live testen |
 
 ---
 
