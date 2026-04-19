@@ -49,7 +49,7 @@ def embed_signature_in_pdf(
     box_w = 283
     box_h = 136
     # Y von oben → ReportLab Y von unten
-    box_top    = page_height - 448        # obere Kante der Box
+    box_top    = page_height - 355        # obere Kante der Box (~125mm von oben)
     box_bottom = box_top - box_h          # untere Kante
 
     # ── Layout innerhalb der Box (von oben nach unten) ───────────────
