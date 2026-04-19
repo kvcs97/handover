@@ -393,6 +393,7 @@ async function loadSettings() {
     Object.keys(form.value).forEach(key => {
       if (res.data[key] !== undefined) form.value[key] = res.data[key]
     })
+    if (res.data.outlook_logged_in) outlookLoggedIn.value = true
     if (form.value.company_logo_b64) {
       logoPreview.value = `data:image/png;base64,${form.value.company_logo_b64}`
     }

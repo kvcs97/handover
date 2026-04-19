@@ -83,10 +83,18 @@ def run_setup(data: SetupData, db: Session = Depends(get_db)):
 @router.get("/all")
 def get_all_settings(db: Session = Depends(get_db), user=Depends(require_admin)):
     """Alle Settings für die Einstellungsseite (nur Admin)"""
-    settings = db.query(Setting).all()
-    # Passwörter / Keys nicht zurückgeben
-    safe_keys = ["company_name", "company_address", "printer_name", "data_source_type"]
-    return {s.key: s.value for s in settings if s.key in safe_keys}
+    settings_dict = {s.key: s.value for s in db.query(Setting).all()}
+    safe_keys = [
+        "company_name", "company_address", "company_logo_b64",
+        "printer_name",
+        "data_source_type", "data_source_path", "data_source_url",
+        "outlook_type", "outlook_email", "outlook_tenant_id",
+        "outlook_client_id", "outlook_server", "outlook_imap_server",
+    ]
+    result = {key: settings_dict.get(key, "") for key in safe_keys}
+    # Token nicht zurückgeben — nur ob vorhanden
+    result["outlook_logged_in"] = bool(settings_dict.get("outlook_access_token"))
+    return result
 
 
 @router.put("/{key}")
