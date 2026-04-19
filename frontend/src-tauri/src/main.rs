@@ -24,6 +24,10 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<serde_json::Value, S
 
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    // Backend stoppen bevor der NSIS-Installer handover-backend.exe überschreibt
+    if let Some(mut child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
+        let _ = child.kill();
+    }
     let updater = app.updater().map_err(|e| e.to_string())?;
     if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
         update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
