@@ -13,13 +13,14 @@ def embed_signature_in_pdf(
     signature_png_base64: str,
     signer_name: str,
     archive_dir: str,
-    filename: str
+    filename: str,
+    carrier_name: str = "",
+    truck_plate: str = "",
 ) -> str:
     """
     Bettet die Unterschrift in das PDF ein.
-    - Analysiert erste Seite auf Weissraum
-    - Platziert Unterschrift oben rechts oder wo am meisten Platz ist
-    - Speichert in archive_dir und gibt Pfad zurück
+    Position: X=51pt, Y=448pt von oben, 283×136pt
+    Layout: Unterschrift (groß) → Spediteur-Daten → Linie + Signaturtext
     """
     try:
         from pypdf import PdfReader, PdfWriter
@@ -39,47 +40,64 @@ def embed_signature_in_pdf(
     reader = PdfReader(io.BytesIO(pdf_bytes))
     writer = PdfWriter()
 
-    # Erste Seite analysieren
-    first_page = reader.pages[0]
+    first_page  = reader.pages[0]
     page_width  = float(first_page.mediabox.width)
     page_height = float(first_page.mediabox.height)
 
-    # Unterschrift-Dimensionen (max 180x60 Punkte)
-    sig_w = 180
-    sig_h = 60
+    # ── Position & Dimensionen (in PDF-Punkten) ──────────────────────
+    box_x = 51
+    box_w = 283
+    box_h = 136
+    # Y von oben → ReportLab Y von unten
+    box_top    = page_height - 448        # obere Kante der Box
+    box_bottom = box_top - box_h          # untere Kante
 
-    # Position: oben rechts mit Margin
-    margin = 30
-    x = page_width - sig_w - margin
-    y = page_height - sig_h - margin
+    # ── Layout innerhalb der Box (von oben nach unten) ───────────────
+    sig_img_h  = 82                       # Unterschriftsbild-Höhe
+    sig_img_y  = box_top - sig_img_h      # ReportLab y (untere Kante des Bildes)
 
-    # Overlay PDF mit Unterschrift erstellen
+    carrier_gap = 3
+    carrier_font = 8
+    carrier_leading = 10
+    c1_y = sig_img_y - carrier_gap - carrier_font          # Zeile 1 Baseline
+    c2_y = c1_y - carrier_leading                          # Zeile 2
+    c3_y = c2_y - carrier_leading                          # Zeile 3
+
+    sep_y  = c3_y - 6                                      # Trennlinie
+    text_y = sep_y - 9                                     # Signaturtext Baseline
+
+    # ── Overlay erstellen ────────────────────────────────────────────
     overlay_buffer = io.BytesIO()
     c = rl_canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
 
-    # Unterschrift-Bild
-    sig_img = Image.open(io.BytesIO(sig_bytes)).convert("RGBA")
-
-    # Weissen Hintergrund entfernen (transparent machen)
+    # Weissen Hintergrund der Unterschrift entfernen
+    sig_img   = Image.open(io.BytesIO(sig_bytes)).convert("RGBA")
     sig_clean = _remove_white_bg(sig_img)
-    sig_buffer = io.BytesIO()
-    sig_clean.save(sig_buffer, format="PNG")
-    sig_buffer.seek(0)
+    sig_buf   = io.BytesIO()
+    sig_clean.save(sig_buf, format="PNG")
+    sig_buf.seek(0)
 
-    # Unterschrift zeichnen
-    img_reader = ImageReader(sig_buffer)
-    c.drawImage(img_reader, x, y, width=sig_w, height=sig_h, mask="auto")
+    # 1. Unterschriftsbild (groß)
+    c.drawImage(ImageReader(sig_buf), box_x, sig_img_y, width=box_w, height=sig_img_h, mask="auto")
 
-    # Signatur-Linie
+    # 2. Spediteur-Daten
+    c.setFont("Helvetica", carrier_font)
+    c.setFillColorRGB(0.25, 0.25, 0.25)
+    if carrier_name:
+        c.drawString(box_x, c1_y, f"Spedition: {carrier_name}")
+    if truck_plate:
+        c.drawString(box_x, c2_y, f"Kennzeichen: {truck_plate}")
+    c.drawString(box_x, c3_y, f"Fahrer: {signer_name}")
+
+    # 3. Trennlinie
     c.setStrokeColorRGB(0.2, 0.2, 0.2)
     c.setLineWidth(0.5)
-    c.line(x, y - 4, x + sig_w, y - 4)
+    c.line(box_x, sep_y, box_x + box_w, sep_y)
 
-    # Signatur-Text
+    # 4. Signaturtext
     c.setFont("Helvetica", 7)
     c.setFillColorRGB(0.4, 0.4, 0.4)
-    signed_text = f"Unterzeichnet: {signer_name}  |  {datetime.now().strftime('%d.%m.%Y %H:%M')}"
-    c.drawString(x, y - 14, signed_text)
+    c.drawString(box_x, text_y, f"Unterzeichnet: {signer_name}  |  {datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
     c.save()
     overlay_buffer.seek(0)
