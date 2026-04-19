@@ -41,7 +41,7 @@ jobs:
         working-directory: backend
         run: |
           pip install pyinstaller==6.19.0
-          pyinstaller --onefile --name handover-backend main.py
+          pyinstaller handover.spec --clean
 
       - name: Copy backend into Tauri bundle resources
         run: |
@@ -72,7 +72,63 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'HandOver ${{ github.ref_name }}'
           releaseBody: |
-            Neues Update verfügbar — automatische Installation über den Update-Banner in der App.
+            ## HandOver ${{ github.ref_name }}
+
+            ### Installation
+            - **Standard:** `HandOver_*_x64-setup.exe` herunterladen und ausführen
+            - **Ohne Installer (Portable):** `HandOver_*_portable.zip` herunterladen, entpacken, `HandOver.exe` starten
+
+            > Automatisches Update über den Update-Banner in der App verfügbar.
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
+
+      - name: Build portable ZIP
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $portableDir = "HandOver_portable"
+
+          # Ordner erstellen
+          New-Item -ItemType Directory -Force -Path $portableDir
+
+          # Dateien kopieren
+          Copy-Item "frontend\src-tauri\target\release\handover.exe" "$portableDir\HandOver.exe"
+          Copy-Item "frontend\src-tauri\handover-backend.exe" "$portableDir\handover-backend.exe"
+
+          # start.bat für einfaches Starten
+          @"
+          @echo off
+          start "" /B handover-backend.exe
+          timeout /t 2 /nobreak >nul
+          start "" HandOver.exe
+          "@ | Out-File -FilePath "$portableDir\start.bat" -Encoding ASCII
+
+          # README
+          @"
+          HandOver ${{ github.ref_name }} — Portable Version
+          ===================================================
+          Keine Installation nötig!
+
+          Starten: Doppelklick auf start.bat
+          Oder:    HandOver.exe direkt starten
+
+          Hinweis: Beim ersten Start kann Windows SmartScreen eine Warnung zeigen.
+          -> "Weitere Informationen" -> "Trotzdem ausführen" klicken.
+
+          © 2026 Shoriu
+          "@ | Out-File -FilePath "$portableDir\README.txt" -Encoding UTF8
+
+          # ZIP erstellen
+          $zipName = "HandOver_${version}_portable.zip"
+          Compress-Archive -Path "$portableDir\*" -DestinationPath $zipName -Force
+
+          Write-Host "Portable ZIP erstellt: $zipName"
+          Get-Item $zipName | Select-Object Name, Length
+        shell: powershell
+
+      - name: Upload portable ZIP to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: HandOver_*_portable.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

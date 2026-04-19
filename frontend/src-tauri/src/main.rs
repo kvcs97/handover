@@ -103,7 +103,16 @@ fn main() {
                 for path in &candidates {
                     if path.exists() {
                         eprintln!("[HandOver] Starte Backend: {:?}", path);
-                        match Command::new(path).spawn() {
+                        let mut cmd = Command::new(path);
+
+                        // Windows: kein Konsolenfenster anzeigen
+                        #[cfg(target_os = "windows")]
+                        {
+                            use std::os::windows::process::CommandExt;
+                            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                        }
+
+                        match cmd.spawn() {
                             Ok(child) => {
                                 *app.state::<BackendProcess>().0.lock().unwrap() = Some(child);
                                 // Warten bis Backend bereit
