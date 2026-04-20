@@ -7,7 +7,7 @@ from typing import List, Optional
 import os, base64, tempfile, json
 
 router = APIRouter()
-ARCHIVE_DIR = os.path.join(os.path.expanduser("~"), ".handover", "archive")
+_DEFAULT_ARCHIVE_DIR = os.path.join(os.path.expanduser("~"), ".handover", "archive")
 
 
 class SignPdfRequest(BaseModel):
@@ -170,6 +170,8 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
 
     printer = db.query(Setting).filter(Setting.key == "printer_name").first()
     printer_name = printer.value if printer else ""
+    archive_setting = db.query(Setting).filter(Setting.key == "archive_path").first()
+    archive_dir = (archive_setting.value if (archive_setting and archive_setting.value) else _DEFAULT_ARCHIVE_DIR)
     results = []
 
     for i, att in enumerate(data.attachments):
@@ -179,7 +181,7 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
             try:
                 signed_path = embed_signature_in_pdf(
                     pdf_bytes=pdf_bytes, signature_png_base64=data.signature_png,
-                    signer_name=data.signer_name, archive_dir=ARCHIVE_DIR,
+                    signer_name=data.signer_name, archive_dir=archive_dir,
                     filename=f"signed_{data.referenz}_{safe_name}",
                     carrier_name=data.carrier_name or "",
                     truck_plate=data.truck_plate or "",

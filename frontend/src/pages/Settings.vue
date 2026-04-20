@@ -30,6 +30,13 @@
             <input v-model="form.company_address" type="text" class="input" placeholder="Musterstrasse 1, 9000 St. Gallen" />
           </div>
           <div class="field">
+            <label>Archiv-Ordner</label>
+            <div class="input-with-btn">
+              <input v-model="form.archive_path" type="text" class="input" placeholder="%USERPROFILE%\.handover\archive" />
+              <button class="btn-browse" @click="pickArchiveFolder">Ordner wählen</button>
+            </div>
+          </div>
+          <div class="field">
             <label>Firmenlogo</label>
             <div class="logo-upload-area" @click="$refs.logoInput.click()">
               <img v-if="logoPreview" :src="logoPreview" class="logo-preview" />
@@ -299,6 +306,7 @@
 import { ref, onMounted } from 'vue'
 import api from '../api'
 import { useAuthStore } from '../stores/auth'
+import { open as openDialog } from '@tauri-apps/plugin-dialog'
 
 const auth = useAuthStore()
 
@@ -378,6 +386,7 @@ const form = ref({
   outlook_client_id: '',
   outlook_server:   '',
   outlook_imap_server: '',
+  archive_path: '',
 })
 
 const sourceTypes = [
@@ -428,6 +437,11 @@ function onLogoChange(e) {
 function removeLogo() {
   form.value.company_logo_b64 = ''
   logoPreview.value = ''
+}
+
+async function pickArchiveFolder() {
+  const selected = await openDialog({ directory: true, multiple: false })
+  if (selected) form.value.archive_path = selected
 }
 
 async function testPrint() {
@@ -544,6 +558,12 @@ async function activateLicense() {
 
 .input { padding: 12px 16px; border: 1.5px solid #e8e8ed; border-radius: 11px; font-family: 'DM Sans', sans-serif; font-size: 15px; color: #1d1d1f; outline: none; background: white; transition: border-color 0.2s, box-shadow 0.2s; width: 100%; }
 .input:focus { border-color: #c0546a; box-shadow: 0 0 0 3px rgba(192,84,106,0.1); }
+
+/* Archiv-Pfad */
+.input-with-btn { display: flex; gap: 8px; }
+.input-with-btn .input { flex: 1; }
+.btn-browse { padding: 10px 16px; background: #f2f2f7; border: 1px solid #e5e5ea; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.btn-browse:hover { background: #e8e8ed; }
 
 /* Logo */
 .logo-upload-area { border: 2px dashed #e8e8ed; border-radius: 12px; padding: 24px; cursor: pointer; transition: border-color 0.2s; display: flex; align-items: center; justify-content: center; min-height: 100px; }

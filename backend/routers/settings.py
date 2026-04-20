@@ -90,6 +90,7 @@ def get_all_settings(db: Session = Depends(get_db), user=Depends(require_admin))
         "data_source_type", "data_source_path", "data_source_url",
         "outlook_type", "outlook_email", "outlook_tenant_id",
         "outlook_client_id", "outlook_server", "outlook_imap_server",
+        "archive_path",
     ]
     result = {key: settings_dict.get(key, "") for key in safe_keys}
     # Token nicht zurückgeben — nur ob vorhanden
