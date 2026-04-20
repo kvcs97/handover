@@ -93,8 +93,9 @@ jobs:
           # Ordner erstellen
           New-Item -ItemType Directory -Force -Path $portableDir
 
-          # Dateien kopieren (Backend ist als Sidecar in HandOver.exe eingebettet)
+          # Hauptapp + Sidecar-Backend kopieren
           Copy-Item "frontend\src-tauri\target\release\handover.exe" "$portableDir\HandOver.exe"
+          Copy-Item "frontend\src-tauri\target\release\handover-backend.exe" "$portableDir\handover-backend.exe"
 
           # start.bat für einfaches Starten
           @"
