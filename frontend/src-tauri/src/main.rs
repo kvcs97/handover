@@ -1,11 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::process::{Command, Child};
 use std::sync::Mutex;
 use tauri::Manager;
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_updater::UpdaterExt;
 
-struct BackendProcess(Mutex<Option<Child>>);
+struct BackendProcess(Mutex<Option<CommandChild>>);
 
 #[tauri::command]
 async fn check_for_updates(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
@@ -24,7 +25,7 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<serde_json::Value, S
 
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
-    // Backend stoppen bevor der NSIS-Installer handover-backend.exe überschreibt
+    // Backend stoppen bevor der NSIS-Installer die sidecar-.exe überschreibt
     if let Some(mut child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
         let _ = child.kill();
     }
@@ -35,44 +36,10 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-fn find_backend() -> Option<std::path::PathBuf> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = vec![
-        // NSIS installer: neben der .exe
-        exe_dir.as_ref().map(|d| d.join("handover-backend.exe")),
-        // Resources Unterordner
-        exe_dir.as_ref().map(|d| d.join("resources").join("handover-backend.exe")),
-        // AppData Local (NSIS user install)
-        dirs_next_path("handover-backend.exe"),
-    ];
-
-    for path in candidates.into_iter().flatten() {
-        if path.exists() {
-            return Some(path);
-        }
-    }
-    None
-}
-
-fn dirs_next_path(filename: &str) -> Option<std::path::PathBuf> {
-    // Suche auch im AppData\Local\handover Ordner
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(parent) = exe.parent() {
-            let candidate = parent.join(filename);
-            if candidate.exists() {
-                return Some(candidate);
-            }
-        }
-    }
-    None
-}
-
 fn main() {
     tauri::Builder::default()
         .manage(BackendProcess(Mutex::new(None)))
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
@@ -80,61 +47,22 @@ fn main() {
         .setup(|app| {
             #[cfg(not(debug_assertions))]
             {
-                // Alle möglichen Pfade sammeln
-                let exe_dir = std::env::current_exe()
-                    .ok()
-                    .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+                let sidecar = app.shell().sidecar("handover-backend")
+                    .map_err(|e| format!("Sidecar nicht gefunden: {}", e))?;
 
-                let resource_dir = app.path().resource_dir().ok();
+                let (mut rx, child) = sidecar.spawn()
+                    .map_err(|e| format!("Sidecar konnte nicht gestartet werden: {}", e))?;
 
-                let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+                *app.state::<BackendProcess>().0.lock().unwrap() = Some(child);
 
-                if let Some(ref d) = exe_dir {
-                    candidates.push(d.join("handover-backend.exe"));
-                    candidates.push(d.join("resources").join("handover-backend.exe"));
-                    candidates.push(d.join("_up_").join("handover-backend.exe"));
-                }
-                if let Some(ref d) = resource_dir {
-                    candidates.push(d.join("handover-backend.exe"));
-                }
+                // Stdout/Stderr-Receiver im Hintergrund leeren, sonst blockiert der Prozess
+                tauri::async_runtime::spawn(async move {
+                    while let Some(_) = rx.recv().await {}
+                });
 
-                // Log alle Pfade für Debugging
-                for path in &candidates {
-                    eprintln!("[HandOver] Suche Backend: {:?} — exists={}", path, path.exists());
-                }
-
-                let mut started = false;
-                for path in &candidates {
-                    if path.exists() {
-                        eprintln!("[HandOver] Starte Backend: {:?}", path);
-                        let mut cmd = Command::new(path);
-
-                        // Windows: kein Konsolenfenster anzeigen
-                        #[cfg(target_os = "windows")]
-                        {
-                            use std::os::windows::process::CommandExt;
-                            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-                        }
-
-                        match cmd.spawn() {
-                            Ok(child) => {
-                                *app.state::<BackendProcess>().0.lock().unwrap() = Some(child);
-                                // Warten bis Backend bereit
-                                std::thread::sleep(std::time::Duration::from_millis(3000));
-                                started = true;
-                                eprintln!("[HandOver] Backend gestartet!");
-                                break;
-                            }
-                            Err(e) => eprintln!("[HandOver] Fehler: {}", e),
-                        }
-                    }
-                }
-
-                if !started {
-                    eprintln!("[HandOver] WARNUNG: Backend nicht gefunden!");
-                    eprintln!("[HandOver] exe_dir={:?}", exe_dir);
-                    eprintln!("[HandOver] resource_dir={:?}", resource_dir);
-                }
+                // Warten bis Backend bereit
+                std::thread::sleep(std::time::Duration::from_millis(3000));
+                eprintln!("[HandOver] Backend (Sidecar) gestartet.");
             }
             Ok(())
         })

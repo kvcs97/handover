@@ -43,18 +43,20 @@ jobs:
           pip install pyinstaller==6.19.0
           pyinstaller handover.spec --clean
 
-      - name: Copy backend into Tauri bundle resources
+      - name: Copy backend as Tauri sidecar
         run: |
-          copy backend\dist\handover-backend.exe frontend\src-tauri\handover-backend.exe
+          mkdir frontend\src-tauri\binaries
+          copy backend\dist\handover-backend.exe frontend\src-tauri\binaries\handover-backend-x86_64-pc-windows-msvc.exe
         shell: cmd
 
-      - name: Verify backend exists
+      - name: Verify sidecar exists
         run: |
-          if (Test-Path "frontend\src-tauri\handover-backend.exe") {
-            Write-Host "OK: handover-backend.exe found"
-            Get-Item "frontend\src-tauri\handover-backend.exe" | Select-Object Name, Length
+          $path = "frontend\src-tauri\binaries\handover-backend-x86_64-pc-windows-msvc.exe"
+          if (Test-Path $path) {
+            Write-Host "OK: sidecar found"
+            Get-Item $path | Select-Object Name, Length
           } else {
-            Write-Error "ERROR: handover-backend.exe NOT found!"
+            Write-Error "ERROR: sidecar NOT found!"
             exit 1
           }
         shell: powershell
@@ -91,15 +93,12 @@ jobs:
           # Ordner erstellen
           New-Item -ItemType Directory -Force -Path $portableDir
 
-          # Dateien kopieren
+          # Dateien kopieren (Backend ist als Sidecar in HandOver.exe eingebettet)
           Copy-Item "frontend\src-tauri\target\release\handover.exe" "$portableDir\HandOver.exe"
-          Copy-Item "frontend\src-tauri\handover-backend.exe" "$portableDir\handover-backend.exe"
 
           # start.bat für einfaches Starten
           @"
           @echo off
-          start "" /B handover-backend.exe
-          timeout /t 2 /nobreak >nul
           start "" HandOver.exe
           "@ | Out-File -FilePath "$portableDir\start.bat" -Encoding ASCII
 
