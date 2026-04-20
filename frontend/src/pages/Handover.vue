@@ -298,8 +298,7 @@ async function loadOrder() {
     try {
       const res = await api.get(`/outlook/search/${encodeURIComponent(referenz.value)}`)
       attachments.value = res.data.attachments || []
-      // Alle PDFs standardmässig für Unterschrift markieren
-      signIndices.value = attachments.value.map((_, i) => i)
+      signIndices.value = []
     } catch (e) {
       console.error('Outlook Fehler:', e)
       attachments.value = []
