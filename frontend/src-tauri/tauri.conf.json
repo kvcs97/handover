@@ -1,6 +1,6 @@
 {
   "productName": "HandOver",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "identifier": "com.shoriu.handover",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -28,7 +28,7 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
-    "resources": ["handover-backend.exe"],
+    "externalBin": ["binaries/handover-backend"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
