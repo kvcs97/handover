@@ -15,7 +15,7 @@ HandOver ist eine **Windows Desktop-App** für die Lagerlogistik, entwickelt von
 4. Digitale Unterschrift des Fahrers erfassen
 5. Unterschriebenes PDF lokal archivieren
 
-**Aktueller Stand:** v1.5.1 — in internem Pilot bei medmix Switzerland AG
+**Aktueller Stand:** v1.5.6 — in internem Pilot bei medmix Switzerland AG
 
 ---
 
@@ -48,7 +48,7 @@ handover/
 │       ├── printer.py               ← Druckauftrag
 │       └── license_service.py       ← HMAC-SHA256 Lizenzvalidierung
 ├── frontend/
-│   ├── package.json                 ← version: 1.5.1 (muss sync sein!)
+│   ├── package.json                 ← version: 1.5.6 (muss sync sein!)
 │   ├── vite.config.js
 │   └── src/
 │       ├── api.js                   ← Axios, baseURL: http://localhost:8000
@@ -66,8 +66,8 @@ handover/
 │           ├── Settings.vue         ← Firma, Drucker, Outlook OAuth2, Lizenz
 │           └── SetupWizard.vue
 └── src-tauri/
-    ├── tauri.conf.json              ← version: 1.5.1 (muss sync sein!)
-    ├── Cargo.toml                   ← version = "1.5.1" (muss sync sein!)
+    ├── tauri.conf.json              ← version: 1.5.6 (muss sync sein!)
+    ├── Cargo.toml                   ← version = "1.5.6" (muss sync sein!)
     └── src/main.rs                  ← Backend autostart, check_for_updates
 ```
 
@@ -123,6 +123,7 @@ Tabellen:
 ```
 company_name, company_address, company_logo_b64
 printer_name
+archive_path              ← Zielordner für archivierte PDFs (neu, noch nicht impl.)
 data_source_type          → manual / csv / api / outlook
 outlook_type              → imap / graph / exchange
 outlook_email
@@ -132,7 +133,7 @@ outlook_client_id
 outlook_server
 outlook_imap_server
 outlook_access_token      ← OAuth2 Token (wird nach Login gesetzt)
-outlook_refresh_token
+outlook_refresh_token     ← für automatische Token-Erneuerung
 license_key
 ```
 
@@ -161,7 +162,7 @@ def admin(user=Depends(require_admin)):
 
 ## 📧 Outlook OAuth2 Integration
 
-**Status:** Login funktioniert, E-Mail-Suche noch geblockt ❌
+**Status:** ✅ Vollständig funktionsfähig
 
 **Azure App Registration:**
 - Client ID: `030d437c-961a-49a4-b088-f2f493d9b71d`
@@ -173,14 +174,10 @@ def admin(user=Depends(require_admin)):
 **Flow:**
 1. Frontend POST `/outlook/login/start` → bekommt `user_code` + `verification_url`
 2. User öffnet URL, gibt Code ein, loggt sich bei Microsoft ein
-3. Frontend POST `/outlook/login/complete` → Token wird in `settings.outlook_access_token` gespeichert
+3. Frontend POST `/outlook/login/complete` → Token in `settings.outlook_access_token` gespeichert
 4. IMAP-Verbindung via XOAUTH2: `user={email}\x01auth=Bearer {token}\x01\x01`
 5. IMAP Server: `outlook.office365.com:993`
-
-**Bekannter Bug:** E-Mail-Suche nach OAuth2-Login findet keine Mails.
-Verdacht: Token wird korrekt gespeichert, aber `_search_imap_oauth()` in `outlook_service.py`
-hat möglicherweise einen Fehler in der XOAUTH2-Auth-String Konstruktion oder
-der IMAP-Suchbefehl ist falsch formatiert.
+6. Token-Refresh: `_refresh_access_token()` via Refresh-Token — kein Re-Login nötig
 
 ---
 
@@ -241,31 +238,30 @@ git push origin main --tags
 
 ---
 
-## ⚠️ Bekannte Bugs & offene Punkte
+## ⚠️ Offene Punkte & nächste Aufgaben
 
-### 🔴 Priorität 1 — E-Mail-Suche funktioniert nicht
-**Datei:** `backend/services/outlook_service.py`, Funktion `_search_imap_oauth()`
-**Problem:** OAuth2 Token ist vorhanden, aber IMAP-Suche findet keine E-Mails
-**Was zu prüfen ist:**
-- Auth-String korrekt? `f"user={email}\x01auth=Bearer {token}\x01\x01"` → Base64
-- IMAP `authenticate("XOAUTH2", ...)` — Callback-Format stimmt?
-- Suchbefehl: `mail.search(None, f'SUBJECT "{referenz}"')` — korrekt für IMAP?
-- Token abgelaufen? Refresh-Token vorhanden?
+### 🔴 Priorität 1 — Backend als Tauri Sidecar
+**Problem:** `handover-backend.exe` wird von Firmen-IT (AppLocker) blockiert
+**Was zu ändern:**
+- `tauri.conf.json` → `"externalBin": ["binaries/handover-backend"]` statt `resources`
+- `Cargo.toml` → `tauri-plugin-shell = "2"` hinzufügen
+- `main.rs` → `app.shell().sidecar("handover-backend")` statt `Command::new()`
+- `release.yml` → Backend nach `src-tauri/binaries/handover-backend-x86_64-pc-windows-msvc.exe`
+- Capabilities → Shell-Permissions in `src-tauri/capabilities/main.json`
 
-### 🔴 Priorität 2 — Settings-Felder leer nach Reload
-**Datei:** `frontend/src/pages/Settings.vue`, Funktion `loadSettings()`
-**Problem:** Outlook-Felder (email, client_id, tenant_id etc.) erscheinen leer nach Seitenwechsel
-**Fix vorbereitet:** `loadSettings()` prüft bereits `outlook_access_token` und setzt `outlookLoggedIn.value = true`, aber Felder werden trotzdem nicht befüllt
-**Was zu prüfen:** `/settings/all` Endpoint — gibt er alle Outlook-Keys zurück? `Object.keys(form.value)` — sind alle Outlook-Keys im form-Objekt?
+### 🟡 Priorität 2 — PDF-Auswahl standardmässig abgewählt
+**Datei:** `frontend/src/pages/Handover.vue`
+**Fix:** `signIndices.value = []` statt `attachments.value.map((_, i) => i)` nach E-Mail-Suche
 
-### 🟡 Priorität 3 — Auto-Updater testen
-**Ablauf:** v1.5.0 installieren → v1.5.1 pushen → prüfen ob Update-Banner erscheint
-**UpdateChecker.vue** ruft `invoke('check_for_updates')` auf → `main.rs` prüft `latest.json`
+### 🟡 Priorität 3 — Archiv-Pfad konfigurierbar
+**Was zu tun:**
+- Neues Settings-Feld `archive_path` (Default: `%USERPROFILE%\.handover\archive\`)
+- `Settings.vue` — Ordner-Auswahl Button in Firmendaten-Karte
+- `outlook_router.py` + `handover.py` — `ARCHIVE_DIR` aus Settings lesen statt hardcoded
 
 ### 🟡 Priorität 4 — Testdruck mit echtem Netzwerkdrucker
 **Datei:** `backend/services/printer.py`
-**"Microsoft Print to PDF"** funktioniert nicht (virtueller Drucker)
-Echter Netzwerkdrucker bei medmix nötig für echten Test
+Echter Netzwerkdrucker bei medmix nötig
 
 ---
 
@@ -303,13 +299,15 @@ python generate_license.py
 
 1. **Versionen immer synchron** — package.json + tauri.conf.json + Cargo.toml müssen gleich sein
 2. **PyInstaller hidden imports** — neue Python-Pakete müssen in `handover.spec` unter `hiddenimports` eingetragen werden
-3. **Tauri resources** — Array-Syntax: `"resources": ["handover-backend.exe"]` (nicht Objekt-Syntax)
+3. **Tauri Sidecar** — nächster Schritt ersetzt `resources`-Ansatz, Binary muss `{name}-{target-triple}.exe` heissen
 4. **CORS** — Backend nutzt `allow_origins=["*"]` weil die installierte App nicht auf localhost:5173 läuft
 5. **Microsoft OAuth2** — muss `/consumers` Authority nutzen, nicht Tenant-ID für persönliche Konten
-6. **Settings speichern** — jedes einzelne Setting wird als Key-Value in der `settings` Tabelle gespeichert, nicht als JSON
-7. **Minimal diffs** — Adam bevorzugt kleine, gezielte Änderungen statt komplette Datei-Rewrites
-8. **Deutsche UI** — alle User-facing Texte auf Deutsch
+6. **XOAUTH2** — Auth-String: `user={email}\x01auth=Bearer {token}\x01\x01` → Base64 encode → als Callback zurückgeben
+7. **Token-Refresh** — Access Token läuft nach ~1h ab, `_refresh_access_token()` erneuert automatisch via Refresh-Token
+8. **Settings speichern** — jedes Setting als Key-Value in `settings` Tabelle, nicht als JSON
+9. **Minimal diffs** — Adam bevorzugt kleine, gezielte Änderungen statt komplette Datei-Rewrites
+10. **Deutsche UI** — alle User-facing Texte auf Deutsch
 
 ---
 
-*Briefing erstellt: April 2026 · HandOver v1.5.1*
+*Briefing aktualisiert: April 2026 · HandOver v1.5.6*

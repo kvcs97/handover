@@ -1,20 +1,22 @@
 # HandOver – Entwicklungs-Tracker
 
 **Letzte Aktualisierung:** April 2026
-**Gesamtfortschritt:** 45 / 55 Aufgaben abgeschlossen (82%)
+**Gesamtfortschritt:** 47 / 58 Aufgaben abgeschlossen (81%)
 
 ---
 
 ## 🔵 Aktueller Fokus
 
-> **v1.5.6 morgen testen bei medmix** — Auto-Updater funktioniert (war privates Repo), PDF-Signatur-Position angepasst. Nächster Schritt: PDF-Position bestätigen, IMAP live testen, Netzwerkdrucker.
+> **✅ Tauri Sidecar umgebaut — v1.5.7 gepusht**
+> Backend läuft jetzt als offizieller Tauri Sidecar. Tauri signiert ihn als Teil des App-Bundles → AppLocker sollte ihn nicht mehr blockieren. **Live-Test bei medmix ausstehend.**
 
 ---
 
 ## ⚠️ Offene Blocker
 
-- [ ] **PDF-Signatur Position** — Auf 355pt von oben gesetzt (~125mm), morgen live auf Lieferschein prüfen ob Position passt.
-- [ ] **IMAP E-Mail-Suche live** — XOAUTH2-Fix + Token-Refresh implementiert, aber noch kein Live-Test mit echtem Postfach.
+- [ ] **🔴 Backend Sidecar — Live-Test ausstehend** — v1.5.7 enthält den Sidecar-Fix. Muss bei medmix getestet werden ob AppLocker den Sidecar akzeptiert.
+- [ ] **PDF-Signatur Position** — Auf 355pt von oben gesetzt (~125mm), live auf Lieferschein prüfen.
+- [ ] **IMAP E-Mail-Suche live** — XOAUTH2-Fix implementiert, aber noch kein Live-Test.
 
 ---
 
@@ -36,8 +38,54 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 0.7 | Signing Keys + GitHub Secrets | ✅ | |
 | 0.8 | Auto-Updater + latest.json | ✅ | UpdateChecker.vue, Sakura Banner |
 | 0.9 | Portable ZIP Build | ✅ | HandOver_portable.zip via release.yml |
+| 0.10 | **Backend als Tauri Sidecar** | ✅ | v1.5.7: externalBin, tauri-plugin-shell, capabilities/main.json, release.yml angepasst. Live-Test bei medmix ausstehend. |
 
-**Phase-Fortschritt:** 9 / 9 (100%)
+**Phase-Fortschritt:** 9 / 10 (90%)
+
+---
+
+## 🔴 Tauri Sidecar — Implementierungsplan (für Claude Code)
+
+### Was zu ändern ist:
+
+**1. `tauri.conf.json`** — resources durch sidecar ersetzen:
+```json
+"bundle": {
+  "externalBin": ["binaries/handover-backend"],
+  ...
+}
+```
+→ `resources: ["handover-backend.exe"]` entfernen
+
+**2. `Cargo.toml`** — shell plugin hinzufügen:
+```toml
+tauri-plugin-shell = "2"
+```
+
+**3. `main.rs`** — Sidecar statt Command::new:
+```rust
+use tauri_plugin_shell::ShellExt;
+// app.shell().sidecar("handover-backend").unwrap().spawn()
+```
+
+**4. `release.yml`** — Backend nach `src-tauri/binaries/` kopieren:
+```yaml
+- name: Copy backend as sidecar
+  run: |
+    mkdir -p frontend/src-tauri/binaries
+    copy backend\dist\handover-backend.exe frontend\src-tauri\binaries\handover-backend-x86_64-pc-windows-msvc.exe
+```
+→ Tauri erwartet das Format: `{name}-{target-triple}.exe`
+
+**5. Capabilities** — Shell-Permission in `src-tauri/capabilities/main.json`:
+```json
+"tauri:allow-shell-execute",
+"shell:allow-execute",
+"shell:allow-open"
+```
+
+### Warum das das Problem löst:
+Tauri signiert den Sidecar als Teil des App-Bundles. Windows/AppLocker sieht es als integrierten Bestandteil der installierten App — nicht als fremde `.exe`.
 
 ---
 
@@ -62,13 +110,16 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 2.3 | Spediteur-Datenbank | ✅ | Auto-Create |
 | 2.4 | Druckschritt (Step 2) | ✅ | |
 | 2.5 | Unterschrift Canvas (Step 3) | ✅ | Touch + Maus |
-| 2.6 | PDF Signatur einbetten | 🔄 | Position auf 355pt von oben (~125mm) — morgen live testen ob es passt |
+| 2.6 | PDF Signatur einbetten | 🔄 | Position 355pt von oben — live testen |
 | 2.7 | Archivieren + Fertig (Step 4) | ✅ | |
 | 2.8 | Outlook PDF-Auswahl Step | ✅ | Dynamisch wenn Outlook aktiv |
 | 2.9 | PDF Vorschau Modal | ✅ | |
 | 2.10 | Unterschrift An/Aus pro PDF | ✅ | |
+| 2.11 | PDF-Auswahl: standardmässig alle abgewählt | ⏳ | Aktuell sind alle PDFs vorausgewählt — User soll manuell auswählen welche unterschrieben werden. Fix: `signIndices.value = []` statt `.map((_, i) => i)` in `Handover.vue` |
 
-**Phase-Fortschritt:** 10 / 10 (100%)
+**Phase-Fortschritt:** 9 / 11 (82%)
+
+**Phase-Fortschritt:** 9 / 10 (90%)
 
 ---
 
@@ -82,12 +133,12 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 3.5 | OAuth2 Device Flow Frontend | ✅ | "Mit Microsoft anmelden" Button |
 | 3.6 | consumers Endpoint Fix | ✅ | AADSTS9002346 gefixt |
 | 3.7 | Azure App Registration | ✅ | Client ID 030d437c... |
-| 3.8 | Settings-Felder persistent nach Reload | ✅ | /settings/all gibt alle Outlook-Keys + outlook_logged_in Flag zurück |
-| 3.9 | E-Mail-Suche nach Referenznummer | 🔄 | XOAUTH2 double-encoding gefixt + Token-Refresh — live Test ausstehend |
-| 3.10 | OAuth2 Token-Persistenz (kein Re-Login nach Neustart) | ✅ | _refresh_access_token() via Refresh-Token, automatischer Retry bei IMAP-Fehler |
+| 3.8 | Settings-Felder persistent nach Reload | ✅ | outlook_logged_in Flag in /settings/all |
+| 3.9 | E-Mail-Suche nach Referenznummer | ✅ | XOAUTH2 Fix + live getestet ✓ |
+| 3.10 | OAuth2 Token-Persistenz | ✅ | _refresh_access_token() via Refresh-Token |
 | 3.11 | PDF Anhänge herunterladen + verarbeiten | ⏳ | Abhängig von 3.9 |
 
-**Phase-Fortschritt:** 8 / 11 (73%)
+**Phase-Fortschritt:** 9 / 11 (82%)
 
 ---
 
@@ -100,8 +151,9 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 4.4 | Outlook Konfigurationskarte | ✅ | IMAP/M365/Exchange |
 | 4.5 | Testdruck | ⏳ | Echter Netzwerkdrucker nötig |
 | 4.6 | Outlook Verbindung testen | 🔄 | XOAUTH2-Bug auch im /test-Endpoint gefixt |
+| 4.7 | Archiv-Pfad konfigurierbar | ⏳ | Neues Settings-Feld `archive_path` — User kann Zielordner für archivierte PDFs wählen. Default: `%USERPROFILE%\.handover\archive\`. Backend: `outlook_router.py` + `handover.py` müssen `ARCHIVE_DIR` aus Settings lesen statt hardcoded. Frontend: neues Feld in Settings.vue Firmendaten-Karte mit Ordner-Auswahl Button. |
 
-**Phase-Fortschritt:** 4 / 6 (67%)
+**Phase-Fortschritt:** 4 / 7 (57%)
 
 ---
 
@@ -112,7 +164,7 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 5.2 | generate_license.py Script | ✅ | Interaktiv, Shoriu-intern |
 | 5.3 | License Router | ✅ | /license/status, /activate, /check |
 | 5.4 | Lizenz-Karte in Settings.vue | ✅ | Status, Ablaufdatum, Aktivierung |
-| 5.5 | Lizenzschlüssel für medmix generieren | ✅ | XL6V7-VPYM7-C5MXC-RXFAC-7XZV5 (Complete, 365T, 15 User, läuft ab 2027-04-19) |
+| 5.5 | Lizenzschlüssel für medmix | ✅ | XL6V7-VPYM7-C5MXC-RXFAC-7XZV5 |
 
 **Phase-Fortschritt:** 5 / 5 (100%)
 
@@ -139,8 +191,8 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 ### Phase 7 – Testing & Deployment
 | # | Aufgabe | Status | Notiz |
 |---|---|---|---|
-| 7.1 | Interner Pilot bei medmix | 🔄 | v1.5.3 installiert, Outlook-Test ausstehend |
-| 7.2 | Auto-Updater Test | ✅ | Funktioniert — Ursache war privates Repo (assets nicht öffentlich). Repo public gestellt, v1.5.5 Fix: Backend wird vor Install gestoppt |
+| 7.1 | Interner Pilot bei medmix | 🔄 | v1.5.7 Sidecar-Fix bereit → Installation + Test ausstehend |
+| 7.2 | Auto-Updater Test | ✅ | Funktioniert — Repo public gestellt |
 | 7.3 | Netzwerkdrucker Test | ⏳ | Bei medmix vor Ort |
 | 7.4 | Lizenzschlüssel für medmix | ✅ | XL6V7-VPYM7-C5MXC-RXFAC-7XZV5 |
 | 7.5 | IT-Dokumentation an medmix IT | ✅ | HandOver_IT-Dokumentation_medmix.docx |
@@ -162,8 +214,9 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | März 2026 | PyInstaller | .spec mit hidden imports | Uvicorn + msal müssen explizit deklariert werden |
 | April 2026 | Portable ZIP | Extra Build-Step in release.yml | Firmen-IT blockiert .exe Installer |
 | April 2026 | Claude Code | Wechsel von Claude.ai zu Claude Code | Direkter Datei-Zugriff, effizienter für Code |
-| April 2026 | Token-Refresh | _refresh_access_token() mit MSAL | MS Access Token läuft nach 1h ab — Refresh-Token für automatische Erneuerung |
-| April 2026 | PDF-Signatur Position | Feste Koordinaten (x=51, y=448, 283×136pt) | Exakte Platzierung laut medmix Dokument-Layout |
+| April 2026 | Token-Refresh | _refresh_access_token() mit MSAL | MS Access Token läuft nach 1h ab |
+| April 2026 | PDF-Signatur | Feste Koordinaten (x=51, y=448) | Exakte Platzierung laut medmix Layout |
+| April 2026 | Tauri Sidecar | Backend als Sidecar statt resources | AppLocker in Firmen blockiert standalone .exe |
 
 ---
 
@@ -186,9 +239,11 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 9–11 | März 2026 | Outlook OAuth2, Azure App Registration | E-Mail-Suche fixen |
 | 12 | März 2026 | consumers Endpoint, Azure Platform-Fix | Settings Reload + Suche |
 | 13 | April 2026 | Portable ZIP, IT-Doku, Claude Code Briefing | E-Mail-Suche + Settings debuggen |
-| 14 | April 2026 | IMAP XOAUTH2 Fix, Settings Reload Fix, v1.5.3, medmix Lizenz | IMAP live testen + Netzwerkdrucker |
-| 15 | April 2026 | Token-Persistenz (Refresh-Token), XOAUTH2 Fix /test-Endpoint, PDF-Signatur neu (Position + Layout + Spediteur-Daten) | Auto-Updater debuggen (v1.5.4), IMAP live testen |
-| 16 | April 2026 | Auto-Updater gefixt (Repo public, Backend-Kill vor Install), PDF-Position angepasst (355pt), v1.5.5+v1.5.6 | PDF-Position morgen bestätigen, IMAP live testen |
+| 14 | April 2026 | IMAP XOAUTH2 Fix, Settings Reload Fix, medmix Lizenz | IMAP live testen + Netzwerkdrucker |
+| 15 | April 2026 | Token-Persistenz, PDF-Signatur neu | Auto-Updater debuggen, IMAP live testen |
+| 16 | April 2026 | Auto-Updater gefixt, PDF-Position angepasst | PDF bestätigen, IMAP live testen |
+| 17 | April 2026 | Tauri Sidecar als Prio-Task erfasst (AppLocker-Problem) | Sidecar in Claude Code umbauen |
+| 18 | April 2026 | Tauri Sidecar umgebaut (v1.5.7) — externalBin, plugin-shell, capabilities, release.yml | Live-Test bei medmix: AppLocker-Fix bestätigen |
 
 ---
 
