@@ -1,10 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
+import glob
+import os
 
+GTK_BIN = r"C:\Program Files\GTK3-Runtime Win64\bin"
+gtk_dlls = [(dll, ".") for dll in glob.glob(os.path.join(GTK_BIN, "*.dll"))]
 
 a = Analysis(
     ['main.py'],
-    pathex=[],
-    binaries=[],
+    pathex=[GTK_BIN],
+    binaries=gtk_dlls,
     datas=[],
     hiddenimports=[],
     hookspath=[],

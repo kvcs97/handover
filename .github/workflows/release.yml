@@ -37,6 +37,10 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
+      - name: Install GTK3/Pango für WeasyPrint (MSYS2)
+        run: C:\msys64\usr\bin\pacman.exe --noconfirm -S mingw-w64-x86_64-pango
+        shell: cmd
+
       - name: Build Python backend
         working-directory: backend
         run: |
