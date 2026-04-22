@@ -18,6 +18,8 @@ class SignPdfRequest(BaseModel):
     referenz:      str
     carrier_name:  Optional[str] = ""
     truck_plate:   Optional[str] = ""
+    employee_name: Optional[str] = ""
+    sign_date:     Optional[str] = ""
 
 class OutlookLoginRequest(BaseModel):
     client_id:  str
@@ -185,6 +187,8 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
                     filename=f"signed_{data.referenz}_{safe_name}",
                     carrier_name=data.carrier_name or "",
                     truck_plate=data.truck_plate or "",
+                    employee_name=data.employee_name or "",
+                    sign_date=data.sign_date or "",
                 )
                 if printer_name:
                     try: print_document(signed_path, printer_name=printer_name)
