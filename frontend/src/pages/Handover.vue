@@ -401,6 +401,8 @@ async function submitSignature() {
         referenz:      referenz.value,
         carrier_name:  carrierSearch.value || '',
         truck_plate:   truckPlate.value || '',
+        employee_name: employeeName.value,
+        sign_date:     today.value,
       })
       signedPdfs.value = res.data.results.filter(r => r.status === 'signed')
     }

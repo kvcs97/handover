@@ -62,18 +62,19 @@
         <div class="fields">
           <div class="field">
             <label>Druckername</label>
-            <input v-model="form.printer_name" type="text" class="input" placeholder="HP LaserJet 400"
-              list="printer-list" :disabled="!auth.isAdmin" />
-            <datalist id="printer-list">
-              <option v-for="p in availablePrinters" :key="p.name" :value="p.name">
-                {{ p.name }} ({{ p.type === 'local' ? 'Lokal' : 'Netzwerk' }})
-              </option>
-            </datalist>
-          </div>
-          <div class="box info">
-            <span>💡</span>
-            <div>Den genauen Namen findest du unter<br>
-            <strong>Windows → Einstellungen → Bluetooth & Geräte → Drucker & Scanner</strong></div>
+            <div class="printer-field">
+              <span class="printer-display" :class="{ empty: !form.printer_name }">
+                <span v-if="form.printer_name">🖨️ {{ form.printer_name }}</span>
+                <span v-else>Kein Drucker gewählt</span>
+              </span>
+              <button
+                class="btn-pick-printer"
+                v-if="auth.isAdmin"
+                @click="showPrinterPicker = true"
+              >
+                Auswählen
+              </button>
+            </div>
           </div>
           <div class="test-row">
             <button class="btn-test" @click="testPrint" :disabled="testingPrint || !form.printer_name">
@@ -306,6 +307,13 @@
     <!-- Save Banner -->
     <div class="save-banner" v-if="saved">✅ Einstellungen gespeichert</div>
 
+    <!-- Drucker-Picker Modal -->
+    <PrinterPickerModal
+      v-if="showPrinterPicker"
+      @select="onPrinterSelected"
+      @close="showPrinterPicker = false"
+    />
+
   </div>
 </template>
 
@@ -314,12 +322,13 @@ import { ref, onMounted } from 'vue'
 import api from '../api'
 import { useAuthStore } from '../stores/auth'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
+import PrinterPickerModal from '../components/PrinterPickerModal.vue'
 
 const auth = useAuthStore()
 
 const saving      = ref(false)
 const saved       = ref(false)
-const availablePrinters = ref([])
+const showPrinterPicker = ref(false)
 const testingPrint      = ref(false)
 const testResult        = ref('')
 const showPw            = ref(false)
@@ -506,17 +515,13 @@ async function changePassword() {
   }
 }
 
-async function loadPrinters() {
-  try {
-    const res = await api.get('/settings/printers')
-    availablePrinters.value = res.data
-  } catch {}
+function onPrinterSelected(name) {
+  form.value.printer_name = name
 }
 
 onMounted(async () => {
   await loadSettings()
   await loadLicense()
-  await loadPrinters()
 })
 
 // ── Lizenz ────────────────────────────────────
@@ -591,6 +596,29 @@ async function activateLicense() {
 .logo-placeholder small { font-size: 11px; color: #c8c8c8; }
 .logo-preview { max-height: 80px; max-width: 100%; object-fit: contain; border-radius: 8px; }
 .btn-remove-logo { background: none; border: none; color: #ff3b30; font-size: 13px; cursor: pointer; text-align: left; font-family: 'DM Sans', sans-serif; padding: 0; }
+
+/* Drucker-Picker Feld */
+.printer-field {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border: 1.5px solid #e8e8ed;
+  border-radius: 11px;
+  background: white;
+  transition: border-color 0.2s;
+}
+.printer-field:hover { border-color: #c0c0c0; }
+.printer-display {
+  flex: 1; font-size: 14px; color: #1d1d1f;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.printer-display.empty { color: #98989f; font-style: italic; }
+.btn-pick-printer {
+  padding: 7px 14px; background: #f2f2f7;
+  border: 1px solid #e5e5ea; border-radius: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+  color: #1d1d1f; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn-pick-printer:hover { background: #e8e8ed; border-color: #c0546a; color: #c0546a; }
 
 /* Drucker Test */
 .test-row { display: flex; align-items: center; gap: 12px; }

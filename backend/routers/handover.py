@@ -98,8 +98,9 @@ def sign_handover(data: SignatureSubmit, db: Session = Depends(get_db), user=Dep
     handover.status = "signed"
     db.commit()
 
-    # PDF generieren — Fehler blockiert Workflow nicht
+    # PDF generieren — Fehler blockiert Workflow nicht, wird aber zurückgegeben
     pdf_path = None
+    pdf_error = None
     try:
         pdf_path = generate_pdf(
             handover, db,
@@ -111,13 +112,15 @@ def sign_handover(data: SignatureSubmit, db: Session = Depends(get_db), user=Dep
         handover.status = "archived"
         db.commit()
     except Exception as e:
-        print(f"[WARN] PDF-Fehler (nicht kritisch): {e}")
+        import traceback
+        pdf_error = str(e)
+        print(f"[ERROR] PDF-Generierung fehlgeschlagen: {e}")
+        traceback.print_exc()
 
     db.add(AuditLog(user_id=user.id, handover_id=handover.id, action="signed", detail=data.signer_name))
     db.commit()
 
-    # Workflow geht immer weiter, auch ohne PDF
-    return {"status": handover.status, "pdf_path": pdf_path}
+    return {"status": handover.status, "pdf_path": pdf_path, "pdf_error": pdf_error}
 
 
 @router.get("/list")
