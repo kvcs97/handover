@@ -5,8 +5,9 @@
       <div>
         <h1 class="page-title">Einstellungen</h1>
         <p class="page-sub">Firmendaten, Drucker und Datenquelle</p>
+        <p class="admin-hint" v-if="auth.isAdmin">Diese Einstellungen gelten für alle Benutzer</p>
       </div>
-      <button class="btn-save" @click="saveAll" :disabled="saving">
+      <button class="btn-save" v-if="auth.isAdmin" @click="saveAll" :disabled="saving">
         <span v-if="!saving">Speichern</span>
         <span v-else class="spinner-sm"></span>
       </button>
@@ -23,17 +24,17 @@
         <div class="fields">
           <div class="field">
             <label>Firmenname *</label>
-            <input v-model="form.company_name" type="text" class="input" placeholder="Muster AG" />
+            <input v-model="form.company_name" type="text" class="input" placeholder="Muster AG" :disabled="!auth.isAdmin" />
           </div>
           <div class="field">
             <label>Adresse</label>
-            <input v-model="form.company_address" type="text" class="input" placeholder="Musterstrasse 1, 9000 St. Gallen" />
+            <input v-model="form.company_address" type="text" class="input" placeholder="Musterstrasse 1, 9000 St. Gallen" :disabled="!auth.isAdmin" />
           </div>
           <div class="field">
             <label>Archiv-Ordner</label>
             <div class="input-with-btn">
-              <input v-model="form.archive_path" type="text" class="input" placeholder="%USERPROFILE%\.handover\archive" />
-              <button class="btn-browse" @click="pickArchiveFolder">Ordner wählen</button>
+              <input v-model="form.archive_path" type="text" class="input" placeholder="%USERPROFILE%\.handover\archive" :disabled="!auth.isAdmin" />
+              <button class="btn-browse" v-if="auth.isAdmin" @click="pickArchiveFolder">Ordner wählen</button>
             </div>
           </div>
           <div class="field">
@@ -61,7 +62,13 @@
         <div class="fields">
           <div class="field">
             <label>Druckername</label>
-            <input v-model="form.printer_name" type="text" class="input" placeholder="HP LaserJet 400" />
+            <input v-model="form.printer_name" type="text" class="input" placeholder="HP LaserJet 400"
+              list="printer-list" :disabled="!auth.isAdmin" />
+            <datalist id="printer-list">
+              <option v-for="p in availablePrinters" :key="p.name" :value="p.name">
+                {{ p.name }} ({{ p.type === 'local' ? 'Lokal' : 'Netzwerk' }})
+              </option>
+            </datalist>
           </div>
           <div class="box info">
             <span>💡</span>
@@ -92,8 +99,8 @@
               <div
                 v-for="s in sourceTypes" :key="s.value"
                 class="source-card"
-                :class="{ selected: form.data_source_type === s.value }"
-                @click="form.data_source_type = s.value"
+                :class="{ selected: form.data_source_type === s.value, disabled: !auth.isAdmin }"
+                @click="auth.isAdmin && (form.data_source_type = s.value)"
               >
                 <span>{{ s.icon }}</span>
                 <div>
@@ -105,13 +112,13 @@
           </div>
           <div class="field" v-if="form.data_source_type === 'csv'">
             <label>CSV-Ordner Pfad</label>
-            <input v-model="form.data_source_path" type="text" class="input" placeholder="C:\ERP\Export" />
+            <input v-model="form.data_source_path" type="text" class="input" placeholder="C:\ERP\Export" :disabled="!auth.isAdmin" />
           </div>
           <div class="field" v-if="form.data_source_type === 'api'">
             <label>API URL</label>
-            <input v-model="form.data_source_url" type="text" class="input" placeholder="https://erp.firma.ch/api/orders" />
+            <input v-model="form.data_source_url" type="text" class="input" placeholder="https://erp.firma.ch/api/orders" :disabled="!auth.isAdmin" />
             <label style="margin-top:8px">API Key (optional)</label>
-            <input v-model="form.data_source_key" type="password" class="input" placeholder="••••••••" />
+            <input v-model="form.data_source_key" type="password" class="input" placeholder="••••••••" :disabled="!auth.isAdmin" />
           </div>
         </div>
       </div>
@@ -312,6 +319,7 @@ const auth = useAuthStore()
 
 const saving      = ref(false)
 const saved       = ref(false)
+const availablePrinters = ref([])
 const testingPrint      = ref(false)
 const testResult        = ref('')
 const showPw            = ref(false)
@@ -398,7 +406,7 @@ const sourceTypes = [
 
 async function loadSettings() {
   try {
-    const res = await api.get('/settings/all')
+    const res = await api.get('/settings/global')
     Object.keys(form.value).forEach(key => {
       if (res.data[key] !== undefined) form.value[key] = res.data[key]
     })
@@ -498,9 +506,17 @@ async function changePassword() {
   }
 }
 
+async function loadPrinters() {
+  try {
+    const res = await api.get('/settings/printers')
+    availablePrinters.value = res.data
+  } catch {}
+}
+
 onMounted(async () => {
   await loadSettings()
   await loadLicense()
+  await loadPrinters()
 })
 
 // ── Lizenz ────────────────────────────────────
@@ -540,6 +556,8 @@ async function activateLicense() {
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
 .page-title  { font-family: 'Instrument Serif', serif; font-size: 40px; font-weight: 400; color: #1d1d1f; letter-spacing: -1.5px; }
 .page-sub    { font-size: 15px; color: #6e6e73; margin-top: 6px; font-weight: 300; }
+
+.admin-hint { font-size: 12px; color: #c0546a; margin-top: 4px; font-weight: 500; }
 
 .btn-save { padding: 11px 24px; background: linear-gradient(135deg, #e8849a, #c0546a); color: white; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 6px; min-width: 110px; justify-content: center; }
 .btn-save:hover:not(:disabled) { background: #000; }
@@ -588,6 +606,7 @@ async function activateLicense() {
 .source-card { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 11px; border: 1.5px solid #e8e8ed; background: white; cursor: pointer; transition: all 0.15s; }
 .source-card:hover    { border-color: #c0c0c0; }
 .source-card.selected { border-color: #c0546a; background: rgba(0,113,227,0.04); }
+.source-card.disabled { opacity: 0.6; cursor: default; pointer-events: none; }
 .source-card > span  { font-size: 20px; flex-shrink: 0; }
 .source-card strong { font-size: 14px; color: #1d1d1f; display: block; }
 .source-card p      { font-size: 12px; color: #98989f; margin-top: 1px; }

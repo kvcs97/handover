@@ -18,7 +18,7 @@ def get_setting(db: Session, key: str) -> str:
     return s.value if s else ""
 
 
-def generate_pdf(handover: Handover, db: Session, signature: str = None) -> str:
+def generate_pdf(handover: Handover, db: Session, signature: str = None, employee_name: str = None, sign_date: str = None) -> str:
     """
     Generiert ein PDF aus dem HTML-Template.
     Wenn signature übergeben wird → finales Archiv-PDF mit Unterschrift.
@@ -40,6 +40,8 @@ def generate_pdf(handover: Handover, db: Session, signature: str = None) -> str:
         "driver_name":     handover.driver_name or "—",
         "signature_png":   signature,
         "signed_at":       datetime.utcnow().strftime("%d.%m.%Y %H:%M:%S UTC") if signature else None,
+        "employee_name":   employee_name or "",
+        "sign_date":       sign_date or datetime.utcnow().strftime("%d.%m.%Y"),
     }
 
     template = jinja_env.get_template("handover.html")

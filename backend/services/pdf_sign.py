@@ -16,6 +16,8 @@ def embed_signature_in_pdf(
     filename: str,
     carrier_name: str = "",
     truck_plate: str = "",
+    employee_name: str = "",
+    sign_date: str = "",
 ) -> str:
     """
     Bettet die Unterschrift in das PDF ein.
@@ -97,7 +99,9 @@ def embed_signature_in_pdf(
     # 4. Signaturtext
     c.setFont("Helvetica", 7)
     c.setFillColorRGB(0.4, 0.4, 0.4)
-    c.drawString(box_x, text_y, f"Unterzeichnet: {signer_name}  |  {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+    display_name = employee_name if employee_name else signer_name
+    display_date = sign_date if sign_date else datetime.now().strftime("%d.%m.%Y")
+    c.drawString(box_x, text_y, f"Unterzeichnet: {display_name}  –  {display_date}")
 
     c.save()
     overlay_buffer.seek(0)

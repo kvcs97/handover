@@ -103,6 +103,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '../api'
+import { open as shellOpen } from '@tauri-apps/plugin-shell'
 
 const handovers = ref([]); const loading = ref(true)
 const selectedHandover = ref(null); const pdfUrl = ref(null); const loadingPdf = ref(false)
@@ -138,7 +139,17 @@ async function selectHandover(h) {
   try { const res = await api.get(`/handover/${h.id}/pdf`, { responseType: 'blob' }); pdfUrl.value = URL.createObjectURL(res.data) }
   catch {} finally { loadingPdf.value = false }
 }
-function openPdf(h) { if (pdfUrl.value) window.open(pdfUrl.value, '_blank') }
+async function openPdf(h) {
+  if (!h.pdf_path) {
+    alert('Kein PDF-Pfad für diesen Eintrag gespeichert.')
+    return
+  }
+  try {
+    await shellOpen(h.pdf_path)
+  } catch (e) {
+    alert(`Datei nicht mehr vorhanden:\n${h.pdf_path}`)
+  }
+}
 function downloadPdf(h) { if (!pdfUrl.value) return; const a = document.createElement('a'); a.href = pdfUrl.value; a.download = `handover_${h.referenz}.pdf`; a.click() }
 onMounted(async () => { try { const res = await api.get('/handover/list'); handovers.value = res.data } catch (e) { console.error(e) } finally { loading.value = false } })
 </script>
