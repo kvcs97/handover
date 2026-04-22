@@ -171,8 +171,19 @@
           <p class="sig-label">Unterzeichnet: {{ employeeName }} &ndash; {{ today }}</p>
           <button class="btn-clear-sig" @click="clearSig">✕ Löschen</button>
         </div>
+        <div class="submit-status" v-if="submitting && submitStatus">
+          <span class="spinner-sm"></span>
+          <span>{{ submitStatus }}</span>
+        </div>
+        <div class="submit-error" v-if="submitError">
+          <span>⚠</span>
+          <div>
+            <strong>Signatur konnte nicht abgeschlossen werden</strong>
+            <p>{{ submitError }}</p>
+          </div>
+        </div>
         <div class="step-actions">
-          <button class="btn-back" @click="currentStep--">← Zurück</button>
+          <button class="btn-back" @click="currentStep--" :disabled="submitting">← Zurück</button>
           <button class="btn-next" @click="submitSignature" :disabled="!hasSig || submitting">
             <span v-if="!submitting">Bestätigen & Archivieren 📁</span>
             <span v-else class="spinner-sm white"></span>
@@ -379,20 +390,30 @@ function drawTouch(e) { if (!drawing) return; const t = e.touches[0]; const r = 
 function clearSig() { if (ctx) ctx.clearRect(0, 0, sigCanvas.value.width, sigCanvas.value.height); hasSig.value = false }
 
 // ── Submit Unterschrift ────────────────────────
+const submitStatus = ref('')
+const submitError  = ref('')
+
 async function submitSignature() {
   submitting.value = true
+  submitError.value = ''
+  submitStatus.value = 'Unterschrift wird verarbeitet…'
   try {
     const pngData = sigCanvas.value.toDataURL('image/png')
+    if (!pngData || pngData.length < 200) {
+      throw new Error('Unterschrift ist leer — bitte erneut unterschreiben')
+    }
 
     // Outlook PDFs unterschreiben
     if (isOutlookSource.value && attachments.value.length) {
-      // Vollständige Attachment-Daten laden
       const fullAttachments = []
-      for (const att of attachments.value) {
+      for (let i = 0; i < attachments.value.length; i++) {
+        submitStatus.value = `PDF wird geladen (${i + 1}/${attachments.value.length})…`
+        const att = attachments.value[i]
         const res = await api.get(`/outlook/attachment/${encodeURIComponent(referenz.value)}/${att.id}`)
         fullAttachments.push({ ...att, content: res.data.content })
       }
 
+      submitStatus.value = 'PDFs werden signiert und gedruckt…'
       const res = await api.post('/outlook/process', {
         attachments:   fullAttachments,
         sign_indices:  signIndices.value,
@@ -405,10 +426,16 @@ async function submitSignature() {
         sign_date:     today.value,
       })
       signedPdfs.value = res.data.results.filter(r => r.status === 'signed')
+
+      const errors = res.data.results.filter(r => r.status === 'error')
+      if (errors.length) {
+        console.warn('PDF-Signierfehler:', errors)
+      }
     }
 
     // Standard HandOver Signatur
-    await api.post('/handover/sign', {
+    submitStatus.value = 'Übergabe wird archiviert…'
+    const signRes = await api.post('/handover/sign', {
       handover_id:   handoverId.value,
       png_data:      pngData,
       signer_name:   driverName.value || 'Unbekannt',
@@ -416,9 +443,19 @@ async function submitSignature() {
       sign_date:     today.value,
     })
 
+    if (signRes.data?.pdf_error) {
+      throw new Error('PDF-Generierung fehlgeschlagen: ' + signRes.data.pdf_error)
+    }
+
     archivedAt.value = new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })
     currentStep.value = doneStep.value
-  } finally { submitting.value = false }
+  } catch (e) {
+    console.error('submitSignature error:', e)
+    submitError.value = e.response?.data?.detail || e.message || 'Unbekannter Fehler'
+  } finally {
+    submitting.value = false
+    submitStatus.value = ''
+  }
 }
 
 // ── Reset ──────────────────────────────────────
@@ -512,6 +549,13 @@ onMounted(() => refInput.value?.focus())
 .print-status { padding: 14px 24px; border-radius: 12px; font-size: 15px; font-weight: 500; margin-bottom: 28px; }
 .print-status.printing { background: rgba(255,149,0,0.08); color: #c07800; }
 .print-status.done     { background: rgba(40,200,64,0.08); color: #1a7a2e; }
+
+.submit-status { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(192,84,106,0.06); border: 1px solid rgba(192,84,106,0.15); border-radius: 11px; color: #8a2a3e; font-size: 13px; margin-bottom: 16px; width: 100%; }
+.submit-status .spinner-sm { border: 2px solid rgba(192,84,106,0.3); border-top-color: #c0546a; }
+.submit-error { display: flex; gap: 10px; padding: 12px 16px; background: rgba(255,59,48,0.07); border: 1px solid rgba(255,59,48,0.2); border-radius: 11px; color: #c0392b; font-size: 13px; margin-bottom: 16px; width: 100%; align-items: flex-start; }
+.submit-error span { font-size: 18px; flex-shrink: 0; }
+.submit-error strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.submit-error p { font-size: 12px; margin: 0; color: #8a2a3e; word-break: break-word; }
 
 .sig-area { width: 100%; margin-bottom: 28px; }
 .sig-canvas { width: 100%; height: 200px; border: 2px solid #e8e8ed; border-radius: 14px; cursor: crosshair; background: #fafafa; display: block; touch-action: none; transition: border-color 0.2s; }

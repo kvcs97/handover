@@ -34,3 +34,4 @@ exchangelib==5.2.0
 # ── PDF Signatur ──────────────────────────────
 pypdf==4.3.1
 reportlab==4.2.2
+pillow>=10.0.0

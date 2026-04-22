@@ -306,6 +306,7 @@
 
     <!-- Save Banner -->
     <div class="save-banner" v-if="saved">✅ Einstellungen gespeichert</div>
+    <div class="save-banner error" v-if="saveError">⚠ {{ saveError }}</div>
 
     <!-- Drucker-Picker Modal -->
     <PrinterPickerModal
@@ -426,17 +427,42 @@ async function loadSettings() {
   } catch (e) { console.error(e) }
 }
 
+const saveError = ref('')
+
+// Felder die nicht überschrieben werden sollen wenn leer
+// (gespeicherten Wert nicht wegwerfen wenn Formular leer geladen wurde)
+const PROTECTED_IF_EMPTY = ['outlook_password']
+
 async function saveAll() {
-  if (!form.value.company_name) return
+  if (!form.value.company_name) {
+    saveError.value = 'Firmenname ist ein Pflichtfeld'
+    setTimeout(() => saveError.value = '', 4000)
+    return
+  }
   saving.value = true
+  saveError.value = ''
+  const failed = []
   try {
     for (const [key, value] of Object.entries(form.value)) {
-      await api.put(`/settings/${key}`, null, { params: { value } })
+      if (PROTECTED_IF_EMPTY.includes(key) && (!value || value === '')) continue
+      try {
+        await api.put(`/settings/${key}`, null, { params: { value: value ?? '' } })
+      } catch (e) {
+        failed.push(`${key}: ${e.response?.data?.detail || e.message}`)
+      }
     }
-    saved.value = true
-    setTimeout(() => saved.value = false, 3000)
-  } catch (e) { console.error(e) }
-  finally { saving.value = false }
+    if (failed.length) {
+      saveError.value = 'Fehler beim Speichern: ' + failed.join(' · ')
+      setTimeout(() => saveError.value = '', 6000)
+    } else {
+      saved.value = true
+      setTimeout(() => saved.value = false, 3000)
+    }
+  } catch (e) {
+    console.error(e)
+    saveError.value = e.response?.data?.detail || e.message || 'Speichern fehlgeschlagen'
+    setTimeout(() => saveError.value = '', 5000)
+  } finally { saving.value = false }
 }
 
 function onLogoChange(e) {
@@ -654,7 +680,8 @@ async function activateLicense() {
 .box.error   { background: rgba(255,59,48,0.07);  border: 1px solid rgba(255,59,48,0.2);   color: #c0392b; }
 
 /* Save Banner */
-.save-banner { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #e8849a, #c0546a); color: white; padding: 12px 28px; border-radius: 980px; font-size: 14px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.2); animation: fadeUp 0.3s ease both; z-index: 100; }
+.save-banner { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #e8849a, #c0546a); color: white; padding: 12px 28px; border-radius: 980px; font-size: 14px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.2); animation: fadeUp 0.3s ease both; z-index: 100; max-width: 80vw; text-align: center; }
+.save-banner.error { background: linear-gradient(135deg, #ff9a87, #c03a2b); }
 
 .spinner-sm { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
 
