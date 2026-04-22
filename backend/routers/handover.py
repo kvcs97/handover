@@ -22,17 +22,36 @@ class HandoverCreate(BaseModel):
     driver_name:  Optional[str] = None
 
 class SignatureSubmit(BaseModel):
-    handover_id:  int
-    png_data:     str   # Base64 PNG von signature_pad.js
-    signer_name:  str
+    handover_id:   int
+    png_data:      str   # Base64 PNG von signature_pad.js
+    signer_name:   str
+    employee_name: Optional[str] = None
+    sign_date:     Optional[str] = None
+
+
+# ── Helpers ───────────────────────────────────────────────
+
+def get_unique_reference(db: Session, base_ref: str) -> str:
+    """Gibt eine eindeutige Referenz zurück; hängt _2, _3 … an falls bereits vorhanden."""
+    existing = {
+        row.referenz for row in
+        db.query(Handover.referenz).filter(Handover.referenz.like(f"{base_ref}%")).all()
+    }
+    if base_ref not in existing:
+        return base_ref
+    counter = 2
+    while f"{base_ref}_{counter}" in existing:
+        counter += 1
+    return f"{base_ref}_{counter}"
 
 
 # ── Endpoints ─────────────────────────────────────────────
 
 @router.post("/create")
 def create_handover(data: HandoverCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    unique_ref = get_unique_reference(db, data.referenz)
     handover = Handover(
-        referenz=data.referenz,
+        referenz=unique_ref,
         carrier_id=data.carrier_id,
         truck_plate=data.truck_plate,
         driver_name=data.driver_name,
@@ -59,7 +78,7 @@ def create_handover(data: HandoverCreate, db: Session = Depends(get_db), user=De
     except Exception as e:
         print(f"[WARN] Druckfehler (nicht kritisch): {e}")
 
-    return {"id": handover.id, "status": handover.status}
+    return {"id": handover.id, "status": handover.status, "referenz": handover.referenz}
 
 
 @router.post("/sign")
@@ -82,7 +101,12 @@ def sign_handover(data: SignatureSubmit, db: Session = Depends(get_db), user=Dep
     # PDF generieren — Fehler blockiert Workflow nicht
     pdf_path = None
     try:
-        pdf_path = generate_pdf(handover, db, signature=data.png_data)
+        pdf_path = generate_pdf(
+            handover, db,
+            signature=data.png_data,
+            employee_name=data.employee_name,
+            sign_date=data.sign_date,
+        )
         handover.pdf_path = pdf_path
         handover.status = "archived"
         db.commit()

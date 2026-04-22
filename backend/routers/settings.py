@@ -80,22 +80,52 @@ def run_setup(data: SetupData, db: Session = Depends(get_db)):
     return {"status": "setup_complete"}
 
 
+SAFE_KEYS = [
+    "company_name", "company_address", "company_logo_b64",
+    "printer_name",
+    "data_source_type", "data_source_path", "data_source_url",
+    "outlook_type", "outlook_email", "outlook_tenant_id",
+    "outlook_client_id", "outlook_server", "outlook_imap_server",
+    "archive_path",
+]
+
+
+@router.get("/global")
+def get_global_settings(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Globale Einstellungen — für alle angemeldeten Benutzer lesbar"""
+    settings_dict = {s.key: s.value for s in db.query(Setting).all()}
+    result = {key: settings_dict.get(key, "") for key in SAFE_KEYS}
+    result["outlook_logged_in"] = bool(settings_dict.get("outlook_access_token"))
+    return result
+
+
 @router.get("/all")
 def get_all_settings(db: Session = Depends(get_db), user=Depends(require_admin)):
     """Alle Settings für die Einstellungsseite (nur Admin)"""
     settings_dict = {s.key: s.value for s in db.query(Setting).all()}
-    safe_keys = [
-        "company_name", "company_address", "company_logo_b64",
-        "printer_name",
-        "data_source_type", "data_source_path", "data_source_url",
-        "outlook_type", "outlook_email", "outlook_tenant_id",
-        "outlook_client_id", "outlook_server", "outlook_imap_server",
-        "archive_path",
-    ]
-    result = {key: settings_dict.get(key, "") for key in safe_keys}
+    result = {key: settings_dict.get(key, "") for key in SAFE_KEYS}
     # Token nicht zurückgeben — nur ob vorhanden
     result["outlook_logged_in"] = bool(settings_dict.get("outlook_access_token"))
     return result
+
+
+@router.get("/printers")
+def list_printers(user=Depends(get_current_user)):
+    """Alle auf Windows installierten Drucker zurückgeben"""
+    try:
+        import win32print
+        printers = []
+        flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
+        for p in win32print.EnumPrinters(flags, None, 4):
+            port = p.get("pPortName", "")
+            printers.append({
+                "name": p["pPrinterName"],
+                "port": port,
+                "type": "local" if any(k in port.upper() for k in ("USB", "DOT4", "WSD")) else "network",
+            })
+        return printers
+    except Exception as e:
+        return []
 
 
 @router.put("/{key}")

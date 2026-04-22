@@ -163,11 +163,12 @@
             · Wird in {{ signIndices.length }} PDF(s) eingebettet
           </span>
         </p>
-        <div class="sig-area">
+        <div class="sig-area" style="transform: translateY(-2px);">
           <canvas ref="sigCanvas" class="sig-canvas"
             @mousedown="startDraw" @mousemove="draw" @mouseup="stopDraw" @mouseleave="stopDraw"
             @touchstart.prevent="startDrawTouch" @touchmove.prevent="drawTouch" @touchend="stopDraw">
           </canvas>
+          <p class="sig-label">Unterzeichnet: {{ employeeName }} &ndash; {{ today }}</p>
           <button class="btn-clear-sig" @click="clearSig">✕ Löschen</button>
         </div>
         <div class="step-actions">
@@ -218,8 +219,13 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import api from '../api'
 import { useSettingsStore } from '../stores/settings'
+import { useAuthStore } from '../stores/auth'
 
 const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
+
+const employeeName = computed(() => authStore.userName || '')
+const today = computed(() => new Date().toLocaleDateString('de-AT'))
 
 // ── State ──────────────────────────────────────
 const currentStep    = ref(0)
@@ -343,6 +349,9 @@ async function createHandover() {
       truck_plate: truckPlate.value, driver_name: driverName.value,
     })
     handoverId.value = res.data.id
+    if (res.data.referenz && res.data.referenz !== referenz.value) {
+      referenz.value = res.data.referenz
+    }
     currentStep.value = printStep.value
     setTimeout(() => { printDone.value = true }, 2000)
   } finally { creating.value = false }
@@ -398,9 +407,11 @@ async function submitSignature() {
 
     // Standard HandOver Signatur
     await api.post('/handover/sign', {
-      handover_id: handoverId.value,
-      png_data:    pngData,
-      signer_name: driverName.value || 'Unbekannt',
+      handover_id:   handoverId.value,
+      png_data:      pngData,
+      signer_name:   driverName.value || 'Unbekannt',
+      employee_name: employeeName.value,
+      sign_date:     today.value,
     })
 
     archivedAt.value = new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })
@@ -503,7 +514,8 @@ onMounted(() => refInput.value?.focus())
 .sig-area { width: 100%; margin-bottom: 28px; }
 .sig-canvas { width: 100%; height: 200px; border: 2px solid #e8e8ed; border-radius: 14px; cursor: crosshair; background: #fafafa; display: block; touch-action: none; transition: border-color 0.2s; }
 .sig-canvas:active { border-color: #c0546a; }
-.btn-clear-sig { margin-top: 8px; background: none; border: none; font-size: 13px; color: #98989f; cursor: pointer; padding: 4px 8px; font-family: 'DM Sans', sans-serif; transition: color 0.15s; }
+.sig-label { font-size: 12px; color: #6e6e73; margin-top: 6px; margin-bottom: 0; font-weight: 400; }
+.btn-clear-sig { margin-top: 6px; background: none; border: none; font-size: 13px; color: #98989f; cursor: pointer; padding: 4px 8px; font-family: 'DM Sans', sans-serif; transition: color 0.15s; }
 .btn-clear-sig:hover { color: #ff3b30; }
 
 .done-card { align-items: center; text-align: center; }
