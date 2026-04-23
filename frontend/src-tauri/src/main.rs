@@ -56,6 +56,12 @@ fn wait_for_backend(timeout_secs: u64) -> bool {
     }
 }
 
+fn kill_backend(app: &tauri::AppHandle) {
+    if let Some(mut child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
+        let _ = child.kill();
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(BackendProcess(Mutex::new(None)))
@@ -123,13 +129,21 @@ fn main() {
             }
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                if let Some(mut c) = window.state::<BackendProcess>().0.lock().unwrap().take() {
-                    let _ = c.kill();
-                }
+        .on_window_event(|window, event| match event {
+            // Fenster wird geschlossen → Backend sofort killen, bevor der
+            // Prozess verschwindet, damit kein Sidecar verwaist zurueckbleibt.
+            tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed => {
+                kill_backend(&window.app_handle());
             }
+            _ => {}
         })
-        .run(tauri::generate_context!())
-        .expect("Fehler beim Starten der App");
+        .build(tauri::generate_context!())
+        .expect("Fehler beim Starten der App")
+        .run(|app_handle, event| {
+            // Letzter Sicherheitsnetz-Hook: spaetestens beim App-Exit
+            // (z.B. via Tray, Auto-Update-Restart) das Backend beenden.
+            if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
+                kill_backend(app_handle);
+            }
+        });
 }

@@ -21,6 +21,12 @@ class Token(BaseModel):
     token_type:   str
     user_name:    str
     user_role:    str
+    user_id:      int
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password:     str
 
 
 # ── Helpers ───────────────────────────────────────────────
@@ -71,8 +77,25 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
         token_type="bearer",
         user_name=user.name,
         user_role=user.role,
+        user_id=user.id,
     )
 
 @router.get("/me")
 def me(current_user: User = Depends(get_current_user)):
     return {"id": current_user.id, "name": current_user.name, "role": current_user.role}
+
+
+@router.post("/change-password")
+def change_password(
+    data: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Self-Service: der angemeldete Benutzer aendert sein eigenes Passwort."""
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Aktuelles Passwort ist falsch")
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Neues Passwort muss mindestens 8 Zeichen haben")
+    current_user.password_hash = hash_password(data.new_password)
+    db.commit()
+    return {"status": "password_changed"}
