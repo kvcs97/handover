@@ -249,18 +249,24 @@
         </div>
         <div class="fields">
           <div class="field">
-            <label>Neues Passwort</label>
+            <label>Aktuelles Passwort</label>
             <div class="pw-wrap">
-              <input v-model="newPassword" :type="showPw ? 'text' : 'password'" class="input" placeholder="Mindestens 8 Zeichen" />
+              <input v-model="currentPassword" :type="showPw ? 'text' : 'password'" class="input" placeholder="••••••••" autocomplete="current-password" />
               <button type="button" class="pw-toggle" @click="showPw = !showPw">{{ showPw ? '🙈' : '👁️' }}</button>
             </div>
           </div>
           <div class="field">
-            <label>Passwort bestätigen</label>
-            <input v-model="newPasswordConfirm" :type="showPw ? 'text' : 'password'" class="input" placeholder="Wiederholen" />
+            <label>Neues Passwort</label>
+            <input v-model="newPassword" :type="showPw ? 'text' : 'password'" class="input" placeholder="Mindestens 8 Zeichen" autocomplete="new-password" />
           </div>
-          <button class="btn-change-pw" @click="changePassword" :disabled="!newPassword || newPassword !== newPasswordConfirm">
-            Passwort speichern
+          <div class="field">
+            <label>Passwort bestätigen</label>
+            <input v-model="newPasswordConfirm" :type="showPw ? 'text' : 'password'" class="input" placeholder="Wiederholen" autocomplete="new-password" />
+          </div>
+          <button class="btn-change-pw" @click="changePassword"
+            :disabled="!currentPassword || !newPassword || newPassword !== newPasswordConfirm || changingPw">
+            <span v-if="!changingPw">Passwort speichern</span>
+            <span v-else class="spinner-sm"></span>
           </button>
           <div class="box success" v-if="pwChanged">✅ Passwort erfolgreich geändert</div>
           <div class="box error"   v-if="pwError">⚠️ {{ pwError }}</div>
@@ -382,10 +388,12 @@ async function completeDeviceFlow() {
     completingFlow.value = false
   }
 }
-const newPassword = ref('')
+const currentPassword    = ref('')
+const newPassword        = ref('')
 const newPasswordConfirm = ref('')
 const pwChanged   = ref(false)
 const pwError     = ref('')
+const changingPw  = ref(false)
 const logoPreview = ref('')
 
 const form = ref({
@@ -530,14 +538,26 @@ async function changePassword() {
     pwError.value = 'Mindestens 8 Zeichen erforderlich'
     return
   }
+  if (newPassword.value !== newPasswordConfirm.value) {
+    pwError.value = 'Passwörter stimmen nicht überein'
+    return
+  }
+  changingPw.value = true
   try {
-    await api.put(`/users/${auth.user.id}`, { password: newPassword.value })
+    await api.post('/auth/change-password', {
+      current_password: currentPassword.value,
+      new_password:     newPassword.value,
+    })
     pwChanged.value = true
+    currentPassword.value = ''
     newPassword.value = ''
     newPasswordConfirm.value = ''
     setTimeout(() => pwChanged.value = false, 4000)
   } catch (e) {
     pwError.value = e.response?.data?.detail || 'Fehler beim Ändern'
+    setTimeout(() => pwError.value = '', 5000)
+  } finally {
+    changingPw.value = false
   }
 }
 
