@@ -299,11 +299,14 @@ async function loadOrder() {
   if (!referenz.value) return
   loadingOrder.value = true
 
-  // Prüfen ob Outlook als Datenquelle aktiv ist
+  // Prüfen ob Outlook als Datenquelle aktiv ist (global, fuer alle Rollen lesbar)
   try {
-    const res = await api.get('/settings/all')
+    const res = await api.get('/settings/global')
     isOutlookSource.value = res.data.data_source_type === 'outlook'
-  } catch {}
+  } catch (e) {
+    console.error('Konnte Datenquelle nicht laden:', e)
+    isOutlookSource.value = false
+  }
 
   await new Promise(r => setTimeout(r, 400))
   loadingOrder.value = false
