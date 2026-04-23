@@ -135,13 +135,15 @@ def test_outlook_connection(data: OutlookTestRequest, db: Session = Depends(get_
 
 @router.get("/search/{referenz}")
 def search_attachments(referenz: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Sucht PDFs fuer die Referenz und gibt sie inkl. Base64-Inhalt zurueck,
+    damit der Client sie bei der spaeteren Verarbeitung nicht erneut ueber
+    eine potenziell veraenderte IMAP-Sequenz anfordern muss."""
     try:
         from services.outlook_service import search_emails_by_reference
         attachments = search_emails_by_reference(referenz, db)
         if not attachments:
             return {"found": False, "attachments": []}
-        preview = [{"id": a["id"], "name": a["name"], "subject": a["subject"], "date": a["date"], "source": a["source"]} for a in attachments]
-        return {"found": True, "attachments": preview}
+        return {"found": True, "attachments": attachments}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

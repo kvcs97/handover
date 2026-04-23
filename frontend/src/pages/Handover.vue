@@ -339,8 +339,11 @@ function toggleSignature(i) {
 
 async function previewPdf(att) {
   try {
-    const res = await api.get(`/outlook/attachment/${encodeURIComponent(referenz.value)}/${att.id}`)
-    const bytes = atob(res.data.content)
+    if (!att.content) {
+      alert('Vorschau nicht verfügbar — Inhalt fehlt')
+      return
+    }
+    const bytes = atob(att.content)
     const arr = new Uint8Array(bytes.length)
     for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
     const blob = new Blob([arr], { type: 'application/pdf' })
@@ -406,19 +409,16 @@ async function submitSignature() {
       throw new Error('Unterschrift ist leer — bitte erneut unterschreiben')
     }
 
-    // Outlook PDFs unterschreiben
+    // Outlook PDFs unterschreiben — content wurde bereits beim Search geladen
     if (isOutlookSource.value && attachments.value.length) {
-      const fullAttachments = []
-      for (let i = 0; i < attachments.value.length; i++) {
-        submitStatus.value = `PDF wird geladen (${i + 1}/${attachments.value.length})…`
-        const att = attachments.value[i]
-        const res = await api.get(`/outlook/attachment/${encodeURIComponent(referenz.value)}/${att.id}`)
-        fullAttachments.push({ ...att, content: res.data.content })
+      const missing = attachments.value.filter(a => !a.content)
+      if (missing.length) {
+        throw new Error(`${missing.length} PDF(s) haben keinen Inhalt — bitte Referenz neu laden`)
       }
 
       submitStatus.value = 'PDFs werden signiert und gedruckt…'
       const res = await api.post('/outlook/process', {
-        attachments:   fullAttachments,
+        attachments:   attachments.value,
         sign_indices:  signIndices.value,
         signature_png: pngData,
         signer_name:   driverName.value || 'Unbekannt',
