@@ -241,6 +241,57 @@
         </div>
       </div>
 
+      <!-- ── Kurier-Modul ── -->
+      <div class="settings-card">
+        <div class="card-title-row">
+          <span class="card-icon">📦</span>
+          <h2 class="card-title">Kurier-Modul</h2>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label>Kurier-Postfach (E-Mail)</label>
+            <input v-model="form.courier_mailbox" type="email" class="input" placeholder="kurier@firma.com" :disabled="!auth.isAdmin" />
+          </div>
+          <div class="field">
+            <label>Kurier-Archivpfad</label>
+            <div class="input-with-btn">
+              <input v-model="form.courier_archive_path" type="text" class="input" placeholder="C:\Archiv\Kurier" :disabled="!auth.isAdmin" />
+              <button class="btn-browse" v-if="auth.isAdmin" @click="pickCourierArchiveFolder">Ordner wählen</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Standard-Modus beim App-Start</label>
+            <div class="source-options">
+              <div
+                class="source-card"
+                :class="{ selected: form.courier_default_mode === 'lkw', disabled: !auth.isAdmin }"
+                @click="auth.isAdmin && (form.courier_default_mode = 'lkw')"
+              >
+                <span>🚚</span>
+                <div>
+                  <strong>LKW-Verladung</strong>
+                  <p>HandOver klassisch (Sakura-Rosa)</p>
+                </div>
+              </div>
+              <div
+                class="source-card"
+                :class="{ selected: form.courier_default_mode === 'courier', disabled: !auth.isAdmin }"
+                @click="auth.isAdmin && (form.courier_default_mode = 'courier')"
+              >
+                <span>📦</span>
+                <div>
+                  <strong>Kurier</strong>
+                  <p>FedEx / DHL / UPS Tagesübersicht (Kühles Blau)</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Carrier-Konfiguration (Kurier-Modul) ── -->
+      <CarrierConfig v-if="auth.isAdmin" />
+
       <!-- ── Passwort ändern ── -->
       <div class="settings-card">
         <div class="card-title-row">
@@ -330,6 +381,7 @@ import api from '../api'
 import { useAuthStore } from '../stores/auth'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import PrinterPickerModal from '../components/PrinterPickerModal.vue'
+import CarrierConfig      from '../components/courier/CarrierConfig.vue'
 
 const auth = useAuthStore()
 
@@ -413,6 +465,9 @@ const form = ref({
   outlook_server:   '',
   outlook_imap_server: '',
   archive_path: '',
+  courier_mailbox: '',
+  courier_archive_path: '',
+  courier_default_mode: 'lkw',
 })
 
 const sourceTypes = [
@@ -493,6 +548,11 @@ function removeLogo() {
 async function pickArchiveFolder() {
   const selected = await openDialog({ directory: true, multiple: false })
   if (selected) form.value.archive_path = selected
+}
+
+async function pickCourierArchiveFolder() {
+  const selected = await openDialog({ directory: true, multiple: false })
+  if (selected) form.value.courier_archive_path = selected
 }
 
 async function testPrint() {

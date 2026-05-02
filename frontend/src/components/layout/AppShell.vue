@@ -1,5 +1,5 @@
 <template>
-  <div class="shell">
+  <div class="shell" :data-mode="courierStore.mode">
 
     <aside class="sidebar">
       <div class="sidebar-top">
@@ -13,6 +13,10 @@
             <span class="sidebar-name">HandOver</span>
             <span class="sidebar-sub">{{ settingsStore.companyName }}</span>
           </div>
+        </div>
+
+        <div class="sidebar-mode-switch">
+          <ModeSwitch />
         </div>
 
         <nav class="sidebar-nav">
@@ -55,39 +59,63 @@
     </aside>
 
     <main class="main">
-      <Dashboard    v-if="currentPage === 'dashboard'" @navigate="currentPage = $event" />
-      <HandoverPage v-else-if="currentPage === 'handover'" />
-      <ArchivePage  v-else-if="currentPage === 'archive'" />
-      <UsersPage    v-else-if="currentPage === 'users' && authStore.isAdmin" />
-      <SettingsPage v-else-if="currentPage === 'settings' && authStore.isAdmin" />
+      <!-- Kurier-Modus: Dashboard und Archiv mit Kurier-Pages, Settings/Users bleiben gemeinsam -->
+      <template v-if="courierStore.mode === 'courier'">
+        <CourierDashboard v-if="currentPage === 'dashboard' || currentPage === 'handover'" />
+        <ArchivePage      v-else-if="currentPage === 'archive'" />
+        <UsersPage        v-else-if="currentPage === 'users' && authStore.isAdmin" />
+        <SettingsPage     v-else-if="currentPage === 'settings' && authStore.isAdmin" />
+      </template>
+      <!-- LKW-Modus (bestehend) -->
+      <template v-else>
+        <Dashboard    v-if="currentPage === 'dashboard'" @navigate="currentPage = $event" />
+        <HandoverPage v-else-if="currentPage === 'handover'" />
+        <ArchivePage  v-else-if="currentPage === 'archive'" />
+        <UsersPage    v-else-if="currentPage === 'users' && authStore.isAdmin" />
+        <SettingsPage v-else-if="currentPage === 'settings' && authStore.isAdmin" />
+      </template>
     </main>
 
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore }     from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
-import Dashboard    from '../../pages/Dashboard.vue'
-import HandoverPage from '../../pages/Handover.vue'
-import ArchivePage  from '../../pages/Archive.vue'
-import UsersPage    from '../../pages/Users.vue'
-import SettingsPage from '../../pages/Settings.vue'
+import { useCourierStore }  from '../../stores/courier'
+import Dashboard        from '../../pages/Dashboard.vue'
+import HandoverPage     from '../../pages/Handover.vue'
+import ArchivePage      from '../../pages/Archive.vue'
+import UsersPage        from '../../pages/Users.vue'
+import SettingsPage     from '../../pages/Settings.vue'
+import ModeSwitch       from '../shared/ModeSwitch.vue'
+import CourierDashboard from '../courier/CourierDashboard.vue'
 
 const authStore     = useAuthStore()
 const settingsStore = useSettingsStore()
+const courierStore  = useCourierStore()
 const currentPage   = ref('dashboard')
 
-const workflowItems = [
-  { page: 'handover',  icon: '✦',  label: 'Neue Übergabe', role: 'operator' },
-  { page: 'dashboard', icon: '⊞',  label: 'Dashboard' },
-]
+const workflowItems = computed(() =>
+  courierStore.mode === 'courier'
+    ? [
+        { page: 'dashboard', icon: '📦', label: 'Kurier-Dashboard' },
+      ]
+    : [
+        { page: 'handover',  icon: '✦',  label: 'Neue Übergabe', role: 'operator' },
+        { page: 'dashboard', icon: '⊞',  label: 'Dashboard' },
+      ],
+)
 const adminItems = [
   { page: 'archive',  icon: '🗂',  label: 'Archiv' },
   { page: 'users',    icon: '👤',  label: 'Benutzer',      role: 'admin' },
   { page: 'settings', icon: '⚙️',  label: 'Einstellungen', role: 'admin' },
 ]
+
+onMounted(() => {
+  courierStore.applyDefaultModeFromSettings()
+})
 
 const roleLabel = computed(() => ({
   admin:    'Administrator',
@@ -127,7 +155,11 @@ function navigate(item) {
 
 .sidebar-brand {
   display: flex; align-items: center; gap: 10px;
-  padding: 4px 8px; margin-bottom: 28px;
+  padding: 4px 8px; margin-bottom: 14px;
+}
+.sidebar-mode-switch {
+  display: flex; justify-content: center;
+  padding: 0 4px; margin-bottom: 18px;
 }
 .sidebar-logo {
   width: 32px; height: 32px; border-radius: 9px;

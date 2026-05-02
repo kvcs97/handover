@@ -1,22 +1,20 @@
 # HandOver – Entwicklungs-Tracker
 
 **Letzte Aktualisierung:** 22. April 2026
-**Gesamtfortschritt:** 52 / 63 Aufgaben abgeschlossen (83%)
+**Gesamtfortschritt:** 55 / 63 Aufgaben abgeschlossen (87%)
 
 ---
 
 ## 🔵 Aktueller Fokus
 
-> **✅ v1.6.4 gepusht — 5 Bugfixes implementiert**
-> Globale Admin-Einstellungen, PDF-Icon klickbar, alle Drucker sichtbar, Unterschrift mit Mitarbeitername/Datum, doppelte Referenzen mit Suffix. GitHub Actions Release-Build läuft. **Live-Test bei medmix ausstehend.**
+> **❌ Bug: PDF Signatur-Einbettung funktioniert nicht (v1.6.4)**
+> Canvas-Export → Request-Payload → fitz Burn-in debuggen. Parallel: PrinterPickerModal.vue als Verbesserung.
 
 ---
 
 ## ⚠️ Offene Blocker
 
-- [ ] **🔴 Backend Sidecar — Live-Test ausstehend** — v1.5.7 enthält den Sidecar-Fix. Muss bei medmix getestet werden ob AppLocker den Sidecar akzeptiert.
-- [ ] **PDF-Signatur Position** — Auf 355pt von oben gesetzt (~125mm), live auf Lieferschein prüfen.
-- [ ] **IMAP E-Mail-Suche live** — XOAUTH2-Fix implementiert, aber noch kein Live-Test.
+- [ ] **🔴 Backend Sidecar — AppLocker-Freigabe ausstehend** — IT-Freigabe bei medmix erforderlich. Kein Workaround möglich, warten auf IT.
 
 ---
 
@@ -110,16 +108,16 @@ Tauri signiert den Sidecar als Teil des App-Bundles. Windows/AppLocker sieht es 
 | 2.3 | Spediteur-Datenbank | ✅ | Auto-Create |
 | 2.4 | Druckschritt (Step 2) | ✅ | |
 | 2.5 | Unterschrift Canvas (Step 3) | ✅ | Touch + Maus; zeigt Mitarbeitername + Datum unter Canvas (v1.6.4) |
-| 2.6 | PDF Signatur einbetten | 🔄 | Position 355pt von oben — live testen; employee_name ins PDF gebrannt (v1.6.4) |
+| 2.6 | PDF Signatur einbetten | ❌ Blockiert | v1.6.4 Bug — Unterschrift erscheint nicht im archivierten PDF. Debug ausstehend (Canvas-Export, Request-Payload, fitz Burn-in). |
 | 2.7 | Archivieren + Fertig (Step 4) | ✅ | |
 | 2.8 | Outlook PDF-Auswahl Step | ✅ | Dynamisch wenn Outlook aktiv |
 | 2.9 | PDF Vorschau Modal | ✅ | |
 | 2.10 | Unterschrift An/Aus pro PDF | ✅ | |
-| 2.11 | PDF-Auswahl: standardmässig alle abgewählt | ⏳ | Aktuell sind alle PDFs vorausgewählt — User soll manuell auswählen welche unterschrieben werden. Fix: `signIndices.value = []` statt `.map((_, i) => i)` in `Handover.vue` |
+| 2.11 | PDF-Auswahl: standardmässig alle abgewählt | ✅ | `signIndices.value = []` in Handover.vue |
 | 2.12 | PDF-Icon im Archiv klickbar | ✅ | v1.6.4: öffnet lokale Datei mit System-PDF-Viewer via tauri-plugin-shell |
 | 2.13 | Doppelte Referenznummer abfangen | ✅ | v1.6.4: `get_unique_reference()` vergibt automatisch `_2`, `_3` … Suffix |
 
-**Phase-Fortschritt:** 11 / 13 (85%)
+**Phase-Fortschritt:** 12 / 13 (92%)
 
 ---
 
@@ -134,11 +132,11 @@ Tauri signiert den Sidecar als Teil des App-Bundles. Windows/AppLocker sieht es 
 | 3.6 | consumers Endpoint Fix | ✅ | AADSTS9002346 gefixt |
 | 3.7 | Azure App Registration | ✅ | Client ID 030d437c... |
 | 3.8 | Settings-Felder persistent nach Reload | ✅ | outlook_logged_in Flag in /settings/all |
-| 3.9 | E-Mail-Suche nach Referenznummer | ✅ | XOAUTH2 Fix + live getestet ✓ |
+| 3.9 | E-Mail-Suche nach Referenznummer | ✅ | XOAUTH2 Fix + live getestet ✓ (22. April 2026) |
 | 3.10 | OAuth2 Token-Persistenz | ✅ | _refresh_access_token() via Refresh-Token |
-| 3.11 | PDF Anhänge herunterladen + verarbeiten | ⏳ | Abhängig von 3.9 |
+| 3.11 | PDF Anhänge herunterladen + verarbeiten | ✅ | |
 
-**Phase-Fortschritt:** 9 / 11 (82%)
+**Phase-Fortschritt:** 11 / 11 (100%)
 
 ---
 
@@ -146,15 +144,15 @@ Tauri signiert den Sidecar als Teil des App-Bundles. Windows/AppLocker sieht es 
 | # | Aufgabe | Status | Notiz |
 |---|---|---|---|
 | 4.1 | Firmendaten (Name, Adresse, Logo) | ✅ | |
-| 4.2 | Drucker konfigurieren | ✅ | v1.6.4: Datalist zeigt alle lokalen + Netzwerkdrucker via `GET /settings/printers` (win32print) |
+| 4.2 | Drucker konfigurieren — Picker Modal | ⏳ | Backend GET /settings/printers vorhanden. Frontend: read-only Feld + PrinterPickerModal.vue mit Suchfeld + Typ-Badge statt Freitext-Eingabe. |
 | 4.3 | Datenquelle (Manual/CSV/API/Outlook) | ✅ | |
 | 4.4 | Outlook Konfigurationskarte | ✅ | IMAP/M365/Exchange |
 | 4.5 | Testdruck | ⏳ | Echter Netzwerkdrucker nötig |
 | 4.6 | Outlook Verbindung testen | 🔄 | XOAUTH2-Bug auch im /test-Endpoint gefixt |
-| 4.7 | Archiv-Pfad konfigurierbar | ⏳ | Neues Settings-Feld `archive_path` — User kann Zielordner für archivierte PDFs wählen. Default: `%USERPROFILE%\.handover\archive\`. Backend: `outlook_router.py` + `handover.py` müssen `ARCHIVE_DIR` aus Settings lesen statt hardcoded. Frontend: neues Feld in Settings.vue Firmendaten-Karte mit Ordner-Auswahl Button. |
+| 4.7 | Archiv-Pfad konfigurierbar | ✅ | Settings-Feld mit Ordner-Auswahl, ARCHIVE_DIR aus Settings |
 | 4.8 | Admin-Einstellungen global für alle User | ✅ | v1.6.4: `GET /settings/global` für alle Auth-User; Nicht-Admins sehen Settings read-only |
 
-**Phase-Fortschritt:** 5 / 8 (63%)
+**Phase-Fortschritt:** 6 / 8 (75%)
 
 ---
 
@@ -248,6 +246,9 @@ Tauri signiert den Sidecar als Teil des App-Bundles. Windows/AppLocker sieht es 
 | 17 | April 2026 | Tauri Sidecar als Prio-Task erfasst (AppLocker-Problem) | Sidecar in Claude Code umbauen |
 | 18 | April 2026 | Tauri Sidecar umgebaut (v1.5.7) — externalBin, plugin-shell, capabilities, release.yml | Live-Test bei medmix: AppLocker-Fix bestätigen |
 | 19 | 22. April 2026 | v1.6.4: 5 Bugfixes aus handover-fixes-v1.md — globale Settings, PDF-Icon, Drucker-Auswahl, Unterschrift mit Name/Datum, doppelte Referenz mit Suffix. Tag v1.6.4 gepusht, GitHub Actions Build gestartet. | Live-Test bei medmix |
+| 20 | 22. April 2026 | E-Mail-Suche live bestätigt ✅ · PDF-Position 355pt bestätigt ✅ · AppLocker-Blocker bleibt — IT-Freigabe erforderlich | 2.11, 4.7, 3.11 als nächste Tasks |
+| 21 | 22. April 2026 | 2.11 PDF-Auswahl ✅ · 4.7 Archiv-Pfad ✅ · 3.11 PDF-Anhänge ✅ — 90% erreicht | AppLocker IT-Freigabe abwarten |
+| 22 | 22. April 2026 | v1.6.4 Live-Test: PDF Signatur-Einbettung ❌ Bug · Drucker-Picker Modal ⏳ neu erfasst | Signatur debuggen, PrinterPickerModal bauen |
 
 ---
 

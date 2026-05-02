@@ -87,6 +87,8 @@ SAFE_KEYS = [
     "outlook_type", "outlook_email", "outlook_tenant_id",
     "outlook_client_id", "outlook_server", "outlook_imap_server",
     "archive_path",
+    # Kurier-Modul
+    "courier_mailbox", "courier_archive_path", "courier_default_mode",
 ]
 
 
