@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import init_db
 from routers import auth, handover, carriers, settings, users
-from routers import outlook_router, license_router
+from routers import outlook_router, license_router, courier
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,6 +27,7 @@ app.include_router(carriers.router,       prefix="/carriers", tags=["Carriers"])
 app.include_router(settings.router,       prefix="/settings", tags=["Settings"])
 app.include_router(outlook_router.router, prefix="/outlook",  tags=["Outlook"])
 app.include_router(license_router.router, prefix="/license",  tags=["License"])
+app.include_router(courier.router,        prefix="/api/courier", tags=["Courier"])
 
 @app.get("/health")
 def health():

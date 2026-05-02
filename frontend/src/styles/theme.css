@@ -1,0 +1,66 @@
+/* ── Mode-basierte Farbpaletten ───────────────────────────
+ *
+ * Wird per data-mode-Attribut auf <html> umgeschaltet:
+ *   <html data-mode="lkw">      → Sakura-Rosa (HandOver klassisch)
+ *   <html data-mode="courier">  → Kühles Blau (HandOver Courier)
+ *
+ * Komponenten greifen über var(--accent-primary) etc. auf den
+ * aktiven Mode zu — Crossfade beim Wechsel via transition.
+ */
+
+:root {
+  /* Geteilte neutrale Farben (beide Modi) */
+  --color-bg:           #FAFAFA;
+  --color-surface:      #FFFFFF;
+  --color-border:       #E5E5E5;
+  --color-text:         #1A1A1A;
+  --color-text-muted:   #737373;
+  --color-success:      #22C55E;
+  --color-warning:      #F59E0B;
+  --color-danger:       #EF4444;
+
+  /* Carrier-Akzente (immer verfügbar, modusunabhängig) */
+  --carrier-fedex:      #4D148C;
+  --carrier-dhl:        #FFCC00;
+  --carrier-ups:        #6B3F23;
+  --carrier-unknown:    #9CA3AF;
+
+  /* Mode-Crossfade */
+  --mode-transition: 200ms ease;
+}
+
+/* LKW-Modus (Default, Sakura-Rosa) */
+:root,
+:root[data-mode="lkw"] {
+  --accent-primary:     #F4A7BB;
+  --accent-secondary:   #D4829A;
+  --accent-bg:          #FFF5F7;
+  --mode-indicator:     #F4A7BB;
+}
+
+/* Kurier-Modus (Kühles Blau) */
+:root[data-mode="courier"] {
+  --accent-primary:     #5B8DB8;
+  --accent-secondary:   #3D6E99;
+  --accent-bg:          #F0F5FA;
+  --mode-indicator:     #5B8DB8;
+}
+
+/* Sanfter Übergang beim Mode-Wechsel — nur auf Eigenschaften, die wirklich vom Mode abhängen */
+html {
+  transition:
+    background-color var(--mode-transition),
+    color var(--mode-transition);
+}
+
+/* Crossfade beim Mode-Wechsel: der Pinia-Store setzt für ~220ms eine
+ * CSS-Klasse auf <body>, die einen kurzen Fade triggert. Wirkt visuell
+ * als sauberer Übergang zwischen Sakura-Rosa und Kühlem Blau, weil
+ * Browser CSS-Variablen-Werte nicht direkt interpolieren. */
+@keyframes mode-fade {
+  0%   { opacity: 0.78; }
+  100% { opacity: 1;    }
+}
+body.mode-switching {
+  animation: mode-fade 220ms ease;
+}
