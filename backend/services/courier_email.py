@@ -86,26 +86,42 @@ def fetch_courier_emails(process_date: date, db) -> list[CourierEmail]:
     Wirft Exception bei fehlendem OAuth-Token oder IMAP-Fehler.
     """
     config = get_outlook_config(db)
-    if config.get("outlook_type") == "exchange":
-        # Exchange-Pfad bewusst (noch) nicht unterstützt — Adam nutzt OAuth.
-        raise Exception("Kurier-Modul erwartet OAuth/IMAP — Exchange-Pfad nicht implementiert")
+    outlook_type = (config.get("outlook_type") or "").strip().lower()
+    if outlook_type == "exchange":
+        raise Exception(
+            "Kurier-Modul unterstützt aktuell nur OAuth/IMAP. Im LKW-Modul ist Exchange "
+            "konfiguriert — bitte für das Kurier-Postfach OAuth/IMAP einrichten."
+        )
 
     if not config.get("outlook_access_token"):
-        raise Exception("Kein OAuth2 Token — bitte zuerst mit Microsoft anmelden")
+        raise Exception(
+            "Kein OAuth2 Token vorhanden — bitte im LKW-Modul (Outlook-Schritt) einmal "
+            "mit Microsoft anmelden, das Token wird für Kurier mitverwendet."
+        )
 
-    mailbox = _get_courier_mailbox(db, config.get("outlook_email", ""))
+    mailbox = (_get_courier_mailbox(db, config.get("outlook_email", "")) or "").strip()
     if not mailbox:
-        raise Exception("Kein Kurier-Postfach gesetzt (Settings → courier_mailbox)")
+        raise Exception("Kein Kurier-Postfach gesetzt — Settings → Kurier-Modul → Kurier-Postfach")
 
-    imap_server = config.get("outlook_imap_server", "") or "outlook.office365.com"
+    imap_server = (config.get("outlook_imap_server") or "outlook.office365.com").strip()
     cutoff_start, cutoff_end = cutoff_window(process_date)
     since_token = _imap_since_token(cutoff_start)
 
     def _do_fetch(token: str) -> list[CourierEmail]:
         auth_bytes = f"user={mailbox}\x01auth=Bearer {token}\x01\x01".encode()
-        mail = imaplib.IMAP4_SSL(imap_server, 993)
         try:
-            mail.authenticate("XOAUTH2", lambda x: auth_bytes)
+            mail = imaplib.IMAP4_SSL(imap_server, 993)
+        except OSError as e:
+            raise Exception(
+                f"IMAP-Verbindung zu {imap_server}:993 fehlgeschlagen — "
+                f"Internet/Firewall prüfen ({e})"
+            )
+        try:
+            try:
+                mail.authenticate("XOAUTH2", lambda x: auth_bytes)
+            except imaplib.IMAP4.error as e:
+                # explizit weiterreichen, damit der Caller refresh versuchen kann
+                raise
             mail.select("INBOX")
 
             _, msg_ids = mail.search(None, f'(SINCE "{since_token}")')
@@ -162,6 +178,21 @@ def fetch_courier_emails(process_date: date, db) -> list[CourierEmail]:
 
     try:
         return _do_fetch(config["outlook_access_token"])
-    except imaplib.IMAP4.error:
-        new_token = _refresh_access_token(config, db)
-        return _do_fetch(new_token)
+    except imaplib.IMAP4.error as first_err:
+        # Token vermutlich abgelaufen → einmal refreshen und neu versuchen
+        try:
+            new_token = _refresh_access_token(config, db)
+        except Exception as refresh_err:
+            raise Exception(
+                f"OAuth-Token-Refresh fehlgeschlagen: {refresh_err}. "
+                f"Bitte im LKW-Modul (Outlook-Schritt) erneut mit Microsoft anmelden."
+            )
+        try:
+            return _do_fetch(new_token)
+        except imaplib.IMAP4.error as second_err:
+            raise Exception(
+                f"IMAP-Login für '{mailbox}' fehlgeschlagen ({second_err}). "
+                f"Wenn das eine Shared/Team-Mailbox ist, kann der OAuth-Token sie nicht "
+                f"direkt öffnen — dann bitte das Hauptpostfach eintragen oder einen "
+                f"separaten OAuth-Flow für die Kurier-Mailbox einrichten."
+            )

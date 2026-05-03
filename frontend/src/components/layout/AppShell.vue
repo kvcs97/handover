@@ -59,10 +59,10 @@
     </aside>
 
     <main class="main">
-      <!-- Kurier-Modus: Dashboard und Archiv mit Kurier-Pages, Settings/Users bleiben gemeinsam -->
+      <!-- Kurier-Modus: Dashboard und eigenes Kurier-Archiv, Settings/Users bleiben gemeinsam -->
       <template v-if="courierStore.mode === 'courier'">
         <CourierDashboard v-if="currentPage === 'dashboard' || currentPage === 'handover'" />
-        <ArchivePage      v-else-if="currentPage === 'archive'" />
+        <CourierArchive   v-else-if="currentPage === 'archive'" />
         <UsersPage        v-else-if="currentPage === 'users' && authStore.isAdmin" />
         <SettingsPage     v-else-if="currentPage === 'settings' && authStore.isAdmin" />
       </template>
@@ -91,6 +91,7 @@ import UsersPage        from '../../pages/Users.vue'
 import SettingsPage     from '../../pages/Settings.vue'
 import ModeSwitch       from '../shared/ModeSwitch.vue'
 import CourierDashboard from '../courier/CourierDashboard.vue'
+import CourierArchive   from '../../pages/CourierArchive.vue'
 
 const authStore     = useAuthStore()
 const settingsStore = useSettingsStore()

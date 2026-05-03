@@ -33,6 +33,7 @@ from database import (
     get_db,
 )
 from models.courier import (
+    ArchiveListItem,
     CarrierCreate,
     CarrierGroup,
     CarrierOut,
@@ -335,8 +336,10 @@ def fetch_emails(
     process_date = _parse_process_date(data.date)
     try:
         emails = fetch_courier_emails(process_date, db)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e) or "E-Mail-Abruf fehlgeschlagen")
 
     out = []
     for em in emails:
@@ -371,8 +374,11 @@ def process_emails(
 
     try:
         emails: list[CourierEmail] = fetch_courier_emails(process_date, db)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # 502 = Upstream-Problem (IMAP/OAuth/Netz) statt 500 (Server-Bug)
+        raise HTTPException(status_code=502, detail=str(e) or "E-Mail-Abruf fehlgeschlagen")
 
     carriers = db.query(CourierCarrier).filter(CourierCarrier.is_active.is_(True)).all()
 
@@ -769,9 +775,10 @@ def _archive_signed_pdf(
         _safe_segment(process_date_str),
         _safe_segment(carrier.name),
     )
-    ls_label = "_".join(_safe_segment(ls) for ls in (json.loads(shipment.delivery_note_numbers) or []))
-    base_name = ls_label or _safe_segment(target_doc.filename)
-    out_filename = f"signed_{base_name}_{target_doc.id}.pdf"
+    safe_original = _safe_segment(target_doc.filename) or "dokument.pdf"
+    out_filename = f"signed_{safe_original}"
+    if not out_filename.lower().endswith(".pdf"):
+        out_filename += ".pdf"
 
     return embed_signature_in_pdf(
         pdf_bytes=pdf_bytes,
@@ -940,4 +947,86 @@ def sign_carrier_group(
         error_count=len(errors),
         errors=errors,
         shipments=[_shipment_to_out(s) for s in refreshed],
+    )
+
+
+# ── Archiv-Übersicht (Kurier-Archiv-Page) ─────────────────
+
+@router.get("/archive", response_model=list[ArchiveListItem])
+def list_archive(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    carrier_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Archivierte Kurier-Sendungen durchsuchen.
+
+    Filter:
+    - ``date_from`` / ``date_to``: Verarbeitungstag (YYYY-MM-DD), beide optional.
+      Default: alle Einträge — die UI sollte typischerweise einen 30-Tage-Default
+      setzen.
+    - ``carrier_id``: optional einschränken.
+    """
+    q = (
+        db.query(CourierArchive, CourierShipment, CourierCarrier, CourierSignature)
+        .join(CourierShipment, CourierArchive.shipment_id == CourierShipment.id)
+        .join(CourierCarrier, CourierShipment.carrier_id == CourierCarrier.id)
+        .join(CourierSignature, CourierArchive.signature_id == CourierSignature.id)
+        .order_by(CourierArchive.archived_at.desc())
+    )
+
+    if date_from:
+        try:
+            datetime.strptime(date_from, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date_from muss YYYY-MM-DD sein")
+        q = q.filter(CourierShipment.process_date >= date_from)
+    if date_to:
+        try:
+            datetime.strptime(date_to, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date_to muss YYYY-MM-DD sein")
+        q = q.filter(CourierShipment.process_date <= date_to)
+    if carrier_id is not None:
+        q = q.filter(CourierShipment.carrier_id == carrier_id)
+
+    items: list[ArchiveListItem] = []
+    for arch, ship, carrier, sig in q.all():
+        try:
+            ls = json.loads(ship.delivery_note_numbers) or []
+        except (json.JSONDecodeError, TypeError):
+            ls = []
+        items.append(ArchiveListItem(
+            archive_id=arch.id,
+            archived_at=arch.archived_at,
+            process_date=ship.process_date,
+            signed_document_path=arch.signed_document_path,
+            delivery_note_numbers=ls,
+            email_subject=ship.email_subject,
+            email_date=ship.email_date,
+            carrier_id=carrier.id,
+            carrier_name=carrier.name,
+            carrier_display_name=carrier.display_name,
+            signer_name=sig.signer_name,
+            signed_at=sig.signed_at,
+        ))
+    return items
+
+
+@router.get("/archive/{archive_id}/file")
+def get_archive_file(
+    archive_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    arch = db.query(CourierArchive).filter(CourierArchive.id == archive_id).first()
+    if not arch:
+        raise HTTPException(status_code=404, detail="Archiv-Eintrag nicht gefunden")
+    if not arch.signed_document_path or not os.path.exists(arch.signed_document_path):
+        raise HTTPException(status_code=404, detail="Signiertes PDF nicht mehr vorhanden")
+    return FileResponse(
+        arch.signed_document_path,
+        media_type="application/pdf",
+        filename=os.path.basename(arch.signed_document_path),
     )

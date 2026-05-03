@@ -18,11 +18,12 @@ def get_setting(db: Session, key: str) -> str:
     return s.value if s and s.value else ""
 
 
-def _get_archive_dir(db: Session) -> str:
-    configured = get_setting(db, "archive_path")
-    archive_dir = configured or _DEFAULT_ARCHIVE_DIR
-    os.makedirs(archive_dir, exist_ok=True)
-    return archive_dir
+def _get_internal_archive_dir(_db: Session) -> str:
+    """App-generierte ``handover_*``-PDFs landen IMMER im internen Archiv,
+    nicht im user-konfigurierten ``archive_path``. Letzterer ist nur für die
+    signierten PDFs gedacht — so bleibt der Arbeits-Ordner sauber."""
+    os.makedirs(_DEFAULT_ARCHIVE_DIR, exist_ok=True)
+    return _DEFAULT_ARCHIVE_DIR
 
 
 def _decode_signature(signature: str) -> bytes:
@@ -74,7 +75,7 @@ def generate_pdf(
     referenz     = handover.referenz
     datum        = handover.created_at.strftime("%d.%m.%Y  %H:%M Uhr")
 
-    archive_dir = _get_archive_dir(db)
+    archive_dir = _get_internal_archive_dir(db)
     filename    = f"handover_{handover.id}_{referenz}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pdf"
     pdf_path    = os.path.join(archive_dir, filename)
 
