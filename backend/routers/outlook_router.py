@@ -186,7 +186,7 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
                 signed_path = embed_signature_in_pdf(
                     pdf_bytes=pdf_bytes, signature_png_base64=data.signature_png,
                     signer_name=data.signer_name, archive_dir=archive_dir,
-                    filename=f"signed_{data.referenz}_{safe_name}",
+                    filename=f"signed_{safe_name}",
                     carrier_name=data.carrier_name or "",
                     truck_plate=data.truck_plate or "",
                     employee_name=data.employee_name or "",

@@ -151,6 +151,23 @@ class ArchiveOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ArchiveListItem(BaseModel):
+    """Reicheres Antwort-Schema für die Archiv-Übersicht: Archive-Eintrag
+    plus joined Carrier/Sendung/Signatur-Infos für die UI."""
+    archive_id: int
+    archived_at: datetime
+    process_date: str
+    signed_document_path: str
+    delivery_note_numbers: list[str]
+    email_subject: Optional[str] = None
+    email_date: Optional[datetime] = None
+    carrier_id: int
+    carrier_name: str
+    carrier_display_name: str
+    signer_name: Optional[str] = None
+    signed_at: datetime
+
+
 # ── E-Mail-Verarbeitung ────────────────────────────────────
 
 class FetchEmailsRequest(BaseModel):
