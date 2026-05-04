@@ -16,6 +16,8 @@ from __future__ import annotations
 import base64
 import email
 import imaplib
+import logging
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from email.utils import parsedate_to_datetime
@@ -26,6 +28,8 @@ from services.outlook_service import (
     _refresh_access_token,
     get_outlook_config,
 )
+
+log = logging.getLogger("courier.email")
 
 
 @dataclass
@@ -117,41 +121,99 @@ def fetch_courier_emails(process_date: date, db) -> list[CourierEmail]:
                 f"Internet/Firewall prüfen ({e})"
             )
         try:
-            try:
-                mail.authenticate("XOAUTH2", lambda x: auth_bytes)
-            except imaplib.IMAP4.error as e:
-                # explizit weiterreichen, damit der Caller refresh versuchen kann
-                raise
+            mail.authenticate("XOAUTH2", lambda x: auth_bytes)
             mail.select("INBOX")
 
-            _, msg_ids = mail.search(None, f'(SINCE "{since_token}")')
+            typ, msg_ids = mail.search(None, f'(SINCE "{since_token}")')
+            if typ != "OK":
+                raise Exception(f"IMAP-SEARCH fehlgeschlagen ({typ})")
             ids = msg_ids[0].split() if msg_ids and msg_ids[0] else []
+            log.info("Kurier IMAP: %d Nachrichten seit %s", len(ids), since_token)
 
-            results: list[CourierEmail] = []
+            # Phase 1: nur die Header-Felder Date/Subject holen, NICHT den ganzen
+            # Body. Das spart bei vollen Postfächern enorm Bandbreite — typischer
+            # Header < 2 KB, Mail mit PDF-Anhängen oft mehrere MB.
+            in_window: list[bytes] = []
             for msg_id in ids:
-                _, msg_data = mail.fetch(msg_id, "(RFC822)")
-                if not msg_data or not msg_data[0]:
+                try:
+                    typ, env_data = mail.fetch(
+                        msg_id, "(BODY.PEEK[HEADER.FIELDS (DATE SUBJECT)])"
+                    )
+                except imaplib.IMAP4.error as e:
+                    log.warning("Header-Fetch für %s fehlgeschlagen: %s", msg_id, e)
                     continue
-                msg = email.message_from_bytes(msg_data[0][1])
+                if typ != "OK" or not env_data:
+                    continue
 
-                # Datum prüfen
-                raw_date = msg.get("Date")
-                if not raw_date:
+                header_blob = b""
+                for chunk in env_data:
+                    if isinstance(chunk, tuple) and len(chunk) >= 2:
+                        header_blob = chunk[1] or b""
+                        break
+                if not header_blob:
+                    continue
+
+                date_match = re.search(rb"^Date:\s*(.+?)\r?$", header_blob, re.IGNORECASE | re.MULTILINE)
+                if not date_match:
                     continue
                 try:
-                    parsed = parsedate_to_datetime(raw_date)
+                    parsed = parsedate_to_datetime(date_match.group(1).decode("utf-8", errors="replace"))
                 except (TypeError, ValueError):
                     continue
                 local_dt = _to_naive_local(parsed)
                 if not (cutoff_start <= local_dt < cutoff_end):
                     continue
+                in_window.append(msg_id)
 
-                subject = _decode_header_str(msg.get("Subject"))
+            log.info("Kurier IMAP: %d Mails im Cutoff-Fenster", len(in_window))
+
+            # Phase 2: nur für die wenigen Mails im Fenster den vollen Body laden
+            results: list[CourierEmail] = []
+            for msg_id in in_window:
+                try:
+                    typ, msg_data = mail.fetch(msg_id, "(RFC822)")
+                except imaplib.IMAP4.error as e:
+                    log.warning("RFC822-Fetch für %s fehlgeschlagen: %s", msg_id, e)
+                    continue
+                if typ != "OK" or not msg_data or not msg_data[0]:
+                    continue
+
+                # Body ist im ersten Tupel-Element
+                body_blob = b""
+                for chunk in msg_data:
+                    if isinstance(chunk, tuple) and len(chunk) >= 2:
+                        body_blob = chunk[1] or b""
+                        break
+                if not body_blob:
+                    continue
+
+                try:
+                    msg = email.message_from_bytes(body_blob)
+                except Exception as e:
+                    log.warning("Mail %s nicht parsebar: %s", msg_id, e)
+                    continue
+
+                # Datum aus dem vollen Body validieren (statt erneut zu parsen
+                # nehmen wir an, was Phase 1 bereits gefiltert hat — Datum für
+                # die persistierte Sendung holen wir hier nochmal frisch)
+                raw_date = msg.get("Date")
+                try:
+                    parsed = parsedate_to_datetime(raw_date) if raw_date else None
+                except (TypeError, ValueError):
+                    parsed = None
+                local_dt = _to_naive_local(parsed) if parsed else cutoff_start
+
+                subject = _decode_header_str(msg.get("Subject")) or ""
+
                 attachments: list[dict] = []
                 for part in msg.walk():
                     if part.get_content_type() != "application/pdf":
                         continue
-                    payload = part.get_payload(decode=True)
+                    try:
+                        payload = part.get_payload(decode=True)
+                    except Exception as e:
+                        log.warning("Anhang in Mail %s nicht dekodierbar: %s", msg_id, e)
+                        continue
                     if not payload:
                         continue
                     filename = _decode_header_str(part.get_filename() or "dokument.pdf")

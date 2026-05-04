@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
 import re
 from datetime import date, datetime
 from typing import Optional
+
+log_courier = logging.getLogger("courier.router")
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -384,34 +387,48 @@ def process_emails(
 
     process_date_str = process_date.isoformat()
     total_shipments = 0
+    failed_emails: list[dict] = []
 
     for em in emails:
-        ls_numbers = parse_subject_ls_numbers(em.subject)
-        match = detect_carrier(
-            em.subject,
-            [a.get("name", "") for a in em.attachments],
-            carriers,
-        )
-        carrier_obj = match.carrier if match else None
-        override_key = match.override_key if match else None
-
-        drafts: list[ShipmentDraft] = group_into_shipments(ls_numbers, em.attachments)
-
-        for draft in drafts:
-            compute_print_set(draft, carrier_obj, override_key)
-            saved = _persist_shipment(
-                db=db,
-                draft=draft,
-                email=em,
-                carrier=carrier_obj,
-                process_date_str=process_date_str,
+        # Pro Mail eigene Transaktion: ein Crash bei Mail N darf
+        # die bereits committeten Mails 1..N-1 nicht zurückrollen.
+        try:
+            ls_numbers = parse_subject_ls_numbers(em.subject)
+            match = detect_carrier(
+                em.subject,
+                [a.get("name", "") for a in em.attachments],
+                carriers,
             )
-            if saved:
-                total_shipments += 1
+            carrier_obj = match.carrier if match else None
+            override_key = match.override_key if match else None
 
-    db.commit()
+            drafts: list[ShipmentDraft] = group_into_shipments(ls_numbers, em.attachments)
+
+            for draft in drafts:
+                compute_print_set(draft, carrier_obj, override_key)
+                saved = _persist_shipment(
+                    db=db,
+                    draft=draft,
+                    email=em,
+                    carrier=carrier_obj,
+                    process_date_str=process_date_str,
+                )
+                if saved:
+                    total_shipments += 1
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            log_courier.exception("Mail %s konnte nicht verarbeitet werden", em.message_id)
+            failed_emails.append({
+                "message_id": em.message_id,
+                "subject":    em.subject,
+                "error":      str(e),
+            })
+            continue
 
     # Antwort zusammenbauen — neu laden, damit IDs/Timestamps gefüllt sind
+    if failed_emails:
+        log_courier.warning("Process-Emails: %d Mails mit Fehler übersprungen", len(failed_emails))
     return _build_grouped_response(db, process_date_str, len(emails), total_shipments, carriers)
 
 
