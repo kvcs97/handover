@@ -70,7 +70,9 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Build Tauri app
+        id: tauri
         uses: tauri-apps/tauri-action@v0
+        continue-on-error: true   # tauri-action failt manchmal beim latest.json-Upload trotz fertigem Build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -88,6 +90,51 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
+
+      - name: Generate latest.json (fallback wenn tauri-action den Upload verkackt)
+        if: always()
+        shell: powershell
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $msiPath = "frontend\src-tauri\target\release\bundle\msi\HandOver_${version}_x64_en-US.msi"
+          $exePath = "frontend\src-tauri\target\release\bundle\nsis\HandOver_${version}_x64-setup.exe"
+
+          if (-not (Test-Path "$msiPath.sig") -or -not (Test-Path "$exePath.sig")) {
+            Write-Host "Bundle-Sigs nicht vorhanden — Build muss vorher gefailt sein, skip"
+            exit 0
+          }
+
+          $msiSig  = (Get-Content "$msiPath.sig" -Raw).Trim()
+          $exeSig  = (Get-Content "$exePath.sig" -Raw).Trim()
+          $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+          $msiUrl  = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/HandOver_${version}_x64_en-US.msi"
+          $exeUrl  = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/HandOver_${version}_x64-setup.exe"
+
+          $latest = [ordered]@{
+            version  = $version
+            notes    = "HandOver ${{ github.ref_name }}"
+            pub_date = $pubDate
+            platforms = [ordered]@{
+              "windows-x86_64"      = [ordered]@{ signature = $msiSig; url = $msiUrl }
+              "windows-x86_64-msi"  = [ordered]@{ signature = $msiSig; url = $msiUrl }
+              "windows-x86_64-nsis" = [ordered]@{ signature = $exeSig; url = $exeUrl }
+            }
+          }
+
+          $json = $latest | ConvertTo-Json -Depth 10
+          $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($json)
+          [System.IO.File]::WriteAllBytes("latest.json", $bytes)
+          Write-Host "latest.json generiert:"
+          Get-Content latest.json
+
+      - name: Upload latest.json (idempotent — überschreibt falls schon vorhanden)
+        if: hashFiles('latest.json') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build portable ZIP
         run: |
