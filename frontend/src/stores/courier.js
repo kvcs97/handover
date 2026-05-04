@@ -45,13 +45,21 @@ export const useCourierStore = defineStore('courier', () => {
   function toggleMode() {
     mode.value = mode.value === 'lkw' ? 'courier' : 'lkw'
   }
+  /**
+   * Standard-Modus aus den Settings beim App-Start anwenden.
+   *
+   * Wenn `courier_default_mode` konfiguriert ist, gewinnt er IMMER über den
+   * localStorage-Wert. localStorage hält nur die Session-Persistenz für
+   * manuelle Toggles WÄHREND der laufenden App.
+   */
   async function applyDefaultModeFromSettings() {
     try {
-      if (localStorage.getItem(STORAGE_KEY)) return
       const res = await api.get('/settings/global')
       const def = res.data?.courier_default_mode
-      if (def && VALID_MODES.includes(def)) mode.value = def
-    } catch { /* still using default */ }
+      if (def && VALID_MODES.includes(def) && def !== mode.value) {
+        mode.value = def
+      }
+    } catch { /* Settings nicht erreichbar — bleibe beim Initial-Mode */ }
   }
 
   // ── Dashboard-State (Phase 3) ───────────────────────
@@ -132,7 +140,9 @@ export const useCourierStore = defineStore('courier', () => {
     fetchStatus.value = 'loading'
     fetchError.value  = null
     try {
-      const res = await api.post('/api/courier/process-emails', { date }, { timeout: 60000 })
+      // 3 Min Timeout: bei vollen Postfächern kann der initiale Pull mehrere
+      // Dutzend MB an PDF-Anhängen umfassen.
+      const res = await api.post('/api/courier/process-emails', { date }, { timeout: 180000 })
       _applyResponse(res.data)
       fetchStatus.value = 'done'
     } catch (e) {
@@ -273,7 +283,19 @@ export const useCourierStore = defineStore('courier', () => {
   }
 
   function _errorMessage(e) {
-    return e?.response?.data?.detail || e?.message || 'Unbekannter Fehler'
+    // 1) Backend-Detail mit konkretem Text → Priorität
+    if (e?.response?.data?.detail) return e.response.data.detail
+    // 2) Timeout (axios setzt code='ECONNABORTED' bei timeout)
+    if (e?.code === 'ECONNABORTED' || /timeout/i.test(e?.message || '')) {
+      return 'Zeitüberschreitung — der Mail-Abruf hat zu lange gedauert. ' +
+             'Versuch es erneut, oder prüfe das Backend-Log.'
+    }
+    // 3) "Network Error" generisch — meistens Backend abgestürzt oder Connection reset
+    if (/network error/i.test(e?.message || '')) {
+      return 'Netzwerkfehler — Backend antwortet nicht. ' +
+             'Bitte App neu starten und Backend-Log prüfen (Status, Speicher, Stacktrace).'
+    }
+    return e?.message || 'Unbekannter Fehler'
   }
 
   function setDate(iso) {

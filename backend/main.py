@@ -1,12 +1,41 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import logging
+import os
+from logging.handlers import RotatingFileHandler
 from database import init_db
 from routers import auth, handover, carriers, settings, users
 from routers import outlook_router, license_router, courier
 
+
+def _setup_file_logging() -> None:
+    """Schreibt Kurier-/Outlook-Logs in `~/.handover/handover.log` (rotierend),
+    damit Bugs auch im Tauri-Sidecar-Modus nachvollziehbar sind."""
+    log_dir = os.path.join(os.path.expanduser("~"), ".handover")
+    os.makedirs(log_dir, exist_ok=True)
+    handler = RotatingFileHandler(
+        os.path.join(log_dir, "handover.log"),
+        maxBytes=2 * 1024 * 1024,
+        backupCount=3,
+        encoding="utf-8",
+    )
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    ))
+    handler.setLevel(logging.INFO)
+
+    for name in ("courier.email", "courier.router", "uvicorn.error"):
+        lg = logging.getLogger(name)
+        lg.setLevel(logging.INFO)
+        # nicht doppelt anhängen wenn Reload
+        if not any(isinstance(h, RotatingFileHandler) for h in lg.handlers):
+            lg.addHandler(handler)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _setup_file_logging()
     init_db()
     yield
 

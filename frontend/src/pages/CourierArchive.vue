@@ -192,8 +192,8 @@ async function openPdf(archiveId) {
     const res = await api.get(`/api/courier/archive/${archiveId}/file`, { responseType: 'blob' })
     const url = URL.createObjectURL(res.data)
     window.open(url, '_blank')
-    // Browser hat das Blob — nach kurzem Delay revoken (sonst close er das Tab leer)
-    setTimeout(() => URL.revokeObjectURL(url), 60000)
+    // Bewusst NICHT revoken — sonst wird das geöffnete Tab beim Drucken leer.
+    // Der GC räumt den Blob auf, wenn das Tab geschlossen wird.
   } catch (e) {
     error.value = e?.response?.data?.detail || e?.message || 'PDF konnte nicht geöffnet werden'
   } finally {
