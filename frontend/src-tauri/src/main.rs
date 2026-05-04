@@ -30,7 +30,7 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<serde_json::Value, S
 
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
-    if let Some(mut child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
+    if let Some(child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
         let _ = child.kill();
     }
     let updater = app.updater().map_err(|e| e.to_string())?;
@@ -57,7 +57,7 @@ fn wait_for_backend(timeout_secs: u64) -> bool {
 }
 
 fn kill_backend(app: &tauri::AppHandle) {
-    if let Some(mut child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
+    if let Some(child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
         let _ = child.kill();
     }
 }
