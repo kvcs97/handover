@@ -92,25 +92,25 @@ jobs:
           includeUpdaterJson: true
 
       - name: Generate latest.json (fallback wenn tauri-action den Upload verkackt)
-        if: always()
-        shell: powershell
+        if: steps.tauri.outcome != 'success'
+        shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
           $msiPath = "frontend\src-tauri\target\release\bundle\msi\HandOver_${version}_x64_en-US.msi"
           $exePath = "frontend\src-tauri\target\release\bundle\nsis\HandOver_${version}_x64-setup.exe"
 
-          if (-not (Test-Path "$msiPath.sig") -or -not (Test-Path "$exePath.sig")) {
-            Write-Host "Bundle-Sigs nicht vorhanden — Build muss vorher gefailt sein, skip"
+          if (-not (Test-Path "${msiPath}.sig") -or -not (Test-Path "${exePath}.sig")) {
+            Write-Host "Bundle-Sigs nicht gefunden - Build vorher fehlgeschlagen, skip"
             exit 0
           }
 
-          $msiSig  = (Get-Content "$msiPath.sig" -Raw).Trim()
-          $exeSig  = (Get-Content "$exePath.sig" -Raw).Trim()
+          $msiSig  = (Get-Content "${msiPath}.sig" -Raw).Trim()
+          $exeSig  = (Get-Content "${exePath}.sig" -Raw).Trim()
           $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
           $msiUrl  = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/HandOver_${version}_x64_en-US.msi"
           $exeUrl  = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/HandOver_${version}_x64-setup.exe"
 
-          $latest = [ordered]@{
+          $json = [ordered]@{
             version  = $version
             notes    = "HandOver ${{ github.ref_name }}"
             pub_date = $pubDate
@@ -119,12 +119,11 @@ jobs:
               "windows-x86_64-msi"  = [ordered]@{ signature = $msiSig; url = $msiUrl }
               "windows-x86_64-nsis" = [ordered]@{ signature = $exeSig; url = $exeUrl }
             }
-          }
+          } | ConvertTo-Json -Depth 10
 
-          $json = $latest | ConvertTo-Json -Depth 10
           $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($json)
           [System.IO.File]::WriteAllBytes("latest.json", $bytes)
-          Write-Host "latest.json generiert:"
+          Write-Host "latest.json generiert"
           Get-Content latest.json
 
       - name: Upload latest.json (idempotent — überschreibt falls schon vorhanden)
