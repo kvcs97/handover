@@ -84,16 +84,14 @@ class ShipmentBase(BaseModel):
     email_date: datetime
     process_date: str  # YYYY-MM-DD
 
+
+class ShipmentCreate(ShipmentBase):
     @field_validator("delivery_note_numbers")
     @classmethod
     def _at_least_one_ls(cls, v: list[str]) -> list[str]:
         if not v:
             raise ValueError("Mindestens eine Lieferscheinnummer erforderlich")
         return v
-
-
-class ShipmentCreate(ShipmentBase):
-    pass
 
 
 class ShipmentOut(ShipmentBase):
