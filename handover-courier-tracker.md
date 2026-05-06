@@ -1,15 +1,15 @@
 # HandOver Courier – Entwicklungs-Tracker
 
 **Letzte Aktualisierung:** 06.05.2026
-**Gesamtfortschritt:** 42 / 46 Aufgaben abgeschlossen (91%) — v1.7.7 live, Tasks 7.6–7.9 fertig
-**Aktuelle Release-Version:** v1.7.6 (Pydantic-Fix delivery_note_numbers)
+**Gesamtfortschritt:** 44 / 48 Aufgaben abgeschlossen (92%) — v1.8.0 live, Tablet-UI-Optimierung abgeschlossen
+**Aktuelle Release-Version:** v1.8.0 (Tablet/Touch-Optimierung LKW + Kurier + Lesbarkeit)
 
 ---
 
 ## 🔵 Aktueller Fokus
 
-> **UI-Polish & Logik-Fixes nach Adam-Echttest (v1.7.6)**
-> Workflow und Pydantic-Bug sind behoben. Adam hat v1.7.6 erfolgreich getestet: Kurier-Mails werden gefunden, Unterschrift funktioniert. Vier neue Aufgaben aus dem Test: Unterschrifts-Canvas verkleinern + zentrieren (7.6), Signatur-Zeile mit eingeloggtem Mitarbeiter-Namen + Zeitstempel (7.7), Multi-LS-Mails als eine Sendung statt gesplittet (7.8), Dokument-Priorität für Unterschrift: LS vor Rechnung (7.9).
+> **Tablet/Touch-Optimierung abgeschlossen (v1.8.0)**
+> Tasks 7.6–7.9 (Canvas, Signatur-Zeile, Multi-LS-Gruppierung, Dok-Priorität) und 7.10–7.11 (Tablet-UI Kurier + LKW) sind fertig. Alle interaktiven Elemente haben jetzt 44px Touch-Targets, konsistentes Padding (24/32px) und min. 12px Schriftgröße. Nächster Schritt: Adam testet 7.1–7.3, 7.5 (E2E, Edge Cases, Mode-Switch, PyInstaller-Build).
 
 ---
 
@@ -142,8 +142,10 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 7.7 | UI: Signatur-Zeile unter dem Canvas — eingeloggter Mitarbeiter-Name + Datum/Uhrzeit | ✅ | `CarrierSignature.vue`: `useAuthStore` importiert, `sigTimestamp` ref (gesetzt in `reset()`), `.sig-line` Div unter `.canvas-frame` — "Unterzeichnet: [userName] · DD.MM.YYYY HH:MM". |
 | 7.8 | Logik: Rechnungs-Dokumente der richtigen Sendung zuordnen statt neue unassigned-Sendung | ✅ | `shipment_grouping.py`: Multi-LS unassigned-Anhänge werden per Round-Robin auf bestehende Sendungen verteilt statt einer separaten "unassigned"-Sendung. Unassigned-ShipmentDraft entsteht jetzt nur noch bei Mails ohne jede LS-Nummer im Betreff. |
 | 7.9 | Logik: Dokument-Priorität für Unterschrift — LS immer vor Rechnung | ✅ | `routers/courier.py` `_select_burn_target`: PKL > Lieferschein > Rechnung > docs[0]. Rechnung wird nie gewählt, solange ein LS vorhanden ist. |
+| 7.10 | UI: Tablet/Touch-Optimierung Kurier-Modus (v1.7.9) | ✅ | `AppShell`: Sidebar 220→240px, Nav-Items `min-height: 44px`. `ModeSwitch`: 36→44px. `CourierDashboard`: Padding 32/48→24/32, Toolbar-Controls `min-height: 44px`, Font 13→14px. `CarrierGroup`: Footer-Buttons `min-height: 44px`, Pills größer. `ShipmentCard`: Print-Button 32×30→44×44px. `DocumentChip`: Padding 4/10→7/13, Font 11→12px. `StatusBadge`: Font 11→12px. |
+| 7.11 | UI: Tablet/Touch-Optimierung LKW-Seiten + globale Lesbarkeit (v1.8.0) | ✅ | Alle Pages: Padding 40/44→24/32px. `Dashboard`: Btn 44px, Tabelle th 11→12px / td 13→14px, Chips 12px, Action-Btn 56px. `Handover`: Vorschau/Sig-Toggle 44px, Btn-Next/Back 48px, Sig-Canvas max-width 500px/160px zentriert (konsistent mit Kurier). `Archive`: Suche+Filter 44px, Tabelle 14px, Paginierung 30→44px, PDF-Btn + Actions 44px. `CourierArchive`: Felder 44px, Font 13→14px, Archiv-Zeilen Padding +2px, Btn-Icon 44×44px. |
 
-**Phase-Fortschritt:** 5 / 9 (56%) — manuelle Tests + 4 neue Polish-Tasks aus Adam-Echttest
+**Phase-Fortschritt:** 7 / 11 (64%) — manuelle Tests + Tablet-UI-Optimierung abgeschlossen
 
 ---
 
@@ -171,6 +173,9 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 04.05.2026 | Pro-Mail-Transaktionen | Jede Mail im `process-emails`-Loop hat eigene DB-Transaktion mit `try/except + commit/rollback` | Eine kaputte Mail rollt nicht mehr alle bisherigen zurück; Failed-List wandert ins Logfile |
 | 04.05.2026 | File-Logger | `~/.handover/handover.log` (RotatingFileHandler, 2MB×3) für `courier.email`, `courier.router`, `uvicorn.error` | Stacktraces im Tauri-Sidecar-Modus sonst unsichtbar; Adam kann Logfile bei Bugs senden |
 | 04.05.2026 | CI latest.json-Upload | tauri-action mit `continue-on-error: true` + nachgeschalteter Fallback-Step generiert `latest.json` aus `*.sig`-Dateien und uploaded sie via `softprops/action-gh-release@v2` | tauri-action 0.5.x crasht manchmal beim 5. Asset-Upload (Race-Condition). v1.7.3-Release hatte deshalb keine `latest.json` → Auto-Updater blieb stumm |
+| 06.05.2026 | Touch-Target-Minimum | Universell 44px `min-height` auf allen interaktiven Elementen (kein Media-Query-Ansatz) | Apple/Google HIG: 44pt Minimum. Universelle Änderung wirkt auf Tablet und Desktop gleichwertig — Desktop fühlt sich spaciger an, kein Layoutbruch. Kein responsives System nötig. |
+| 06.05.2026 | Tablet-Padding | Alle Pages von `40px 44px` → `24px 32px` reduziert | 11"-Tablet (~1024px nach Sidebar) hatte mit 88px horizontalem Gesamt-Padding zu wenig Nutzfläche. `24/32px` ist ausreichend für den Weißraum-Look ohne zu viel Platz zu verschwenden. |
+| 06.05.2026 | Sig-Canvas LKW-Modus | LKW-Handover-Canvas (in `Handover.vue`) auf `max-width: 500px / height: 160px` vereinheitlicht | Konsistenz mit Kurier-Modus (`CarrierSignature.vue`). Beide Unterschriftsfelder sehen jetzt gleich aus — ein Canvas-Standard für die ganze App. |
 
 ---
 
@@ -198,7 +203,9 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 10 | 03.05.2026 | **Bugfix-Release v1.7.3** (commit 094593e, Tag v1.7.3): Adam meldet "Network Error" beim Mail-Abruf an Tagen mit Mails (leere Tage funktionieren). Root-Cause-Analyse: alter Code lädt ALLE Mails seit gestern komplett (RFC822 inkl. Anhänge), filtert erst danach im Code → axios-Timeout bei vollen Postfächern. **IMAP-Fetch-Refactoring** in `services/courier_email.py`: zwei-Phasen-Fetch — erst nur `BODY.PEEK[HEADER.FIELDS (DATE SUBJECT)]` pro Mail, nur passende Mails bekommen den vollen Body. **Pro-Mail-Transactions** im Loop (eine kaputte Mail rollt nicht alles zurück, Failed-List ins Logfile). **Frontend-Timeout** 60s→180s. **File-Logger** (`~/.handover/handover.log`, RotatingFileHandler 2MB×3) für `courier.email`/`courier.router`/`uvicorn.error`. **Default-Modus-Fix**: localStorage-Check entfernt, Settings-Wert gewinnt IMMER beim App-Start. CI-Build der v1.7.3 ist erfolgreich, aber `tauri-action` failt beim Upload des `latest.json` als 5. Asset (Race-Condition-Bug in tauri-action 0.5.x) → Auto-Updater bekommt kein Update-Signal. | Workflow-Fix nötig |
 | 11 | 04.05.2026 | **CI-Fix v1.7.4** (commit a1c927f, Tag v1.7.4): Workflow `release.yml` erweitert — `tauri-action` läuft mit `continue-on-error: true`, danach zwei neue Steps: `Generate latest.json (fallback)` baut die Datei aus den vorhandenen `*.sig`-Files (msi + setup.exe) als UTF-8 ohne BOM zusammen, `Upload latest.json` schiebt sie idempotent via `softprops/action-gh-release@v2` zum Tag-Release nach. Plus: `unused_mut`-Warnings in `src-tauri/src/main.rs` weg. Damit greift der Auto-Updater jetzt zuverlässig, auch wenn tauri-action beim primären Upload stolpert. | Adam testet v1.7.4 (IMAP-Fix, Default-Modus, Archiv) und meldet UI-Polish-Wünsche |
 | 12 | 05.05.2026 | **CI-Workflow-Fix v1.7.5** + **Pydantic-Fix v1.7.6**: v1.7.5 — Fallback-Step `if: always()` → `if: steps.tauri.outcome != 'success'`, `shell: powershell` → `shell: pwsh` (PS 5.1 las UTF-8 mit Windows-1252-Codepage, Byte 0x94 des em-Dash wurde als String-Terminator `"` interpretiert). v1.7.6 — `ShipmentOut` ValidationError bei `delivery_note_numbers=[]`: Validator aus `ShipmentBase` in `ShipmentCreate` verschoben, damit unmatched Sendungen (Multi-LS-Mails) geladen werden können. Adam testet v1.7.6 erfolgreich: Kurier-Mails gefunden + Unterschrift funktioniert. Neue Polish-Tasks 7.6–7.9 aus dem Echttest aufgenommen. | Tasks 7.6–7.9 umsetzen (Canvas, Signatur-Zeile, Multi-LS-Gruppierung, Dok-Priorität) |
-| 13 | 06.05.2026 | **Tasks 7.6–7.9**: 7.6 Canvas-Verkleinerung (`max-width: 500px`, `height: 150px`, zentriert). 7.7 Signatur-Zeile unter Canvas ("Unterzeichnet: [userName] · DD.MM.YYYY HH:MM", `useAuthStore`, `sigTimestamp` in `reset()`). 7.8 Rechnungs-Zuordnung bei Multi-LS: Round-Robin statt separater unassigned-Sendung (`shipment_grouping.py`). 7.9 Burn-Target-Priorität: PKL > LS > Rechnung > docs[0] (`_select_burn_target` in `courier.py`). vite build OK (127 Module). Push nach v1.7.8. | Adam testet 7.6–7.9 |
+| 13 | 06.05.2026 | **Tasks 7.6–7.9**: 7.6 Canvas-Verkleinerung (`max-width: 500px`, `height: 150px`, zentriert). 7.7 Signatur-Zeile unter Canvas ("Unterzeichnet: [userName] · DD.MM.YYYY HH:MM", `useAuthStore`, `sigTimestamp` in `reset()`). 7.8 Rechnungs-Zuordnung bei Multi-LS: Round-Robin statt separater unassigned-Sendung (`shipment_grouping.py`). 7.9 Burn-Target-Priorität: PKL > LS > Rechnung > docs[0] (`_select_burn_target` in `courier.py`). vite build OK (127 Module). Push v1.7.8. | Tablet-UI optimieren |
+| 14 | 06.05.2026 | **Task 7.10 — Tablet/Touch Kurier-Modus (v1.7.9)**: `AppShell` Sidebar 240px, Nav-Items 44px. `ModeSwitch` 44px. `CourierDashboard` Padding 24/32, Toolbar-Controls 44px. `CarrierGroup` Footer-Buttons 44px + font 14px. `ShipmentCard` Print-Button 44×44px. `DocumentChip` 32px, font 12px. `StatusBadge` font 12px. Alle Touch-Targets auf 44px-Minimum gebracht. | LKW-Seiten optimieren |
+| 15 | 06.05.2026 | **Task 7.11 — Tablet/Touch LKW + Lesbarkeit (v1.8.0)**: Alle Pages Padding 24/32px. `Dashboard` Btn 44px, Tabelle 14px, Chips 12px. `Handover` Buttons 44–48px, Sig-Canvas max-width 500px/160px zentriert. `Archive` Suche+Filter 44px, Tabelle 14px, Paginierung 44px. `CourierArchive` Felder 44px, Btn-Icon 44×44px, Meta-Zeile 12.5px. Globale Lesbarkeit: min. 12px Schriftgröße überall. vite build OK. Push v1.8.0. | Adam testet 7.1–7.3 + 7.5 |
 
 ---
 
