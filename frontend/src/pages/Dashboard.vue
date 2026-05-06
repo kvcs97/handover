@@ -142,7 +142,7 @@ onMounted(async () => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-.dashboard { padding: 40px 44px; font-family: 'DM Sans', sans-serif; }
+.dashboard { padding: 24px 32px; font-family: 'DM Sans', sans-serif; }
 
 /* ── Header ── */
 .dash-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; animation: fadeUp 0.4s ease both; }
@@ -151,12 +151,14 @@ onMounted(async () => {
 .dash-title em { font-style: italic; color: #c0546a; }
 
 .btn-primary {
-  padding: 11px 22px; margin-top: 6px;
+  padding: 12px 24px; margin-top: 6px;
+  min-height: 44px;
   background: linear-gradient(135deg, #e8849a, #c0546a);
   color: white; border: none; border-radius: 12px;
   font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
   cursor: pointer; box-shadow: 0 2px 12px rgba(192,84,106,0.3);
   transition: opacity 0.2s;
+  display: inline-flex; align-items: center;
 }
 .btn-primary:hover { opacity: 0.9; }
 
@@ -187,15 +189,15 @@ onMounted(async () => {
 .card-pill   { font-size: 11px; font-weight: 600; color: #c0546a; background: rgba(192,84,106,0.08); padding: 3px 10px; border-radius: 980px; }
 
 /* ── Table ── */
-.ho-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.ho-table th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #98989f; padding: 0 10px 10px; border-bottom: 1px solid #f0f0f0; }
-.ho-table td { padding: 12px 10px; border-bottom: 1px solid #f7f7f7; color: #1c1c1e; font-weight: 300; }
+.ho-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ho-table th { text-align: left; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #98989f; padding: 0 12px 12px; border-bottom: 1px solid #f0f0f0; }
+.ho-table td { padding: 14px 12px; border-bottom: 1px solid #f7f7f7; color: #1c1c1e; font-weight: 300; }
 .ho-table tr:last-child td { border-bottom: none; }
 .ho-table tr:hover td { background: #fafafa; }
 .ref-cell  { font-family: monospace; font-size: 12px; font-weight: 700; color: #c0546a; }
 .time-cell { color: #98989f; font-size: 12px; }
 
-.chip { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 980px; }
+.chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 980px; }
 .chip.archived { background: rgba(40,167,69,0.1);  color: #1a7a2e; }
 .chip.pending  { background: rgba(255,149,0,0.1);  color: #c07800; }
 .chip.printed  { background: rgba(192,84,106,0.1); color: #c0546a; }
@@ -212,7 +214,8 @@ onMounted(async () => {
 
 .action-btn {
   display: flex; align-items: center; gap: 12px;
-  padding: 14px; border-radius: 12px;
+  padding: 16px; min-height: 56px;
+  border-radius: 12px;
   border: 1.5px solid #f0f0f0; background: #fafafa;
   cursor: pointer; text-align: left; width: 100%;
   font-family: 'DM Sans', sans-serif;
@@ -228,8 +231,8 @@ onMounted(async () => {
 .action-icon-wrap { width: 34px; height: 34px; background: rgba(255,255,255,0.2); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
 .action-btn:not(.primary) .action-icon-wrap { background: #f0f0f0; }
 .action-text { flex: 1; }
-.action-text strong { display: block; font-size: 13px; font-weight: 500; color: #1c1c1e; }
-.action-text span   { display: block; font-size: 11px; color: #98989f; margin-top: 1px; }
+.action-text strong { display: block; font-size: 14px; font-weight: 500; color: #1c1c1e; }
+.action-text span   { display: block; font-size: 12px; color: #98989f; margin-top: 2px; }
 .action-arrow { color: rgba(0,0,0,0.2); font-size: 18px; }
 
 @keyframes fadeUp  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

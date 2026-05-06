@@ -477,7 +477,7 @@ onMounted(() => refInput.value?.focus())
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-.handover-page { padding: 40px 44px; max-width: 900px; font-family: 'DM Sans', sans-serif; }
+.handover-page { padding: 24px 32px; max-width: 900px; font-family: 'DM Sans', sans-serif; }
 
 .page-header { margin-bottom: 32px; animation: fadeUp 0.4s ease both; }
 .page-eyebrow { font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: #98989f; margin-bottom: 5px; }
@@ -524,9 +524,9 @@ onMounted(() => refInput.value?.focus())
 .pdf-info strong { display: block; font-size: 14px; color: #1c1c1e; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; }
 .pdf-info span   { display: block; font-size: 12px; color: #98989f; margin-top: 2px; }
 .pdf-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.btn-preview { padding: 7px 12px; background: white; border: 1.5px solid #e8e8ed; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; color: #1c1c1e; }
+.btn-preview { padding: 10px 14px; min-height: 44px; background: white; border: 1.5px solid #e8e8ed; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; color: #1c1c1e; display: inline-flex; align-items: center; }
 .btn-preview:hover { background: #f5f5f7; }
-.btn-sig-toggle { padding: 7px 12px; background: white; border: 1.5px solid #e8e8ed; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; color: #98989f; }
+.btn-sig-toggle { padding: 10px 14px; min-height: 44px; background: white; border: 1.5px solid #e8e8ed; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; color: #98989f; display: inline-flex; align-items: center; }
 .btn-sig-toggle.active { background: rgba(192,84,106,0.08); border-color: #c0546a; color: #c0546a; }
 
 .empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px; color: #98989f; font-size: 14px; width: 100%; }
@@ -561,10 +561,10 @@ onMounted(() => refInput.value?.focus())
 .submit-error p { font-size: 12px; margin: 0; color: #8a2a3e; word-break: break-word; }
 
 .sig-area { width: 100%; margin-bottom: 28px; }
-.sig-canvas { width: 100%; height: 200px; border: 2px solid #e8e8ed; border-radius: 14px; cursor: crosshair; background: #fafafa; display: block; touch-action: none; transition: border-color 0.2s; }
+.sig-canvas { width: 100%; max-width: 500px; height: 160px; border: 2px solid #e8e8ed; border-radius: 14px; cursor: crosshair; background: #fafafa; display: block; touch-action: none; transition: border-color 0.2s; margin: 0 auto; }
 .sig-canvas:active { border-color: #c0546a; }
-.sig-label { font-size: 12px; color: #6e6e73; margin-top: 6px; margin-bottom: 0; font-weight: 400; }
-.btn-clear-sig { margin-top: 6px; background: none; border: none; font-size: 13px; color: #98989f; cursor: pointer; padding: 4px 8px; font-family: 'DM Sans', sans-serif; transition: color 0.15s; }
+.sig-label { font-size: 12px; color: #6e6e73; margin-top: 8px; margin-bottom: 0; font-weight: 400; text-align: center; }
+.btn-clear-sig { margin-top: 6px; background: none; border: none; font-size: 13px; color: #98989f; cursor: pointer; padding: 8px 12px; min-height: 36px; font-family: 'DM Sans', sans-serif; transition: color 0.15s; display: block; margin-left: auto; margin-right: auto; }
 .btn-clear-sig:hover { color: #ff3b30; }
 
 .done-card { align-items: center; text-align: center; }
@@ -583,7 +583,7 @@ onMounted(() => refInput.value?.focus())
 .preview-iframe { flex: 1; width: 100%; border: none; }
 
 .step-actions { display: flex; gap: 10px; justify-content: flex-end; width: 100%; }
-.btn-next, .btn-back { padding: 12px 24px; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; display: flex; align-items: center; gap: 8px; }
+.btn-next, .btn-back { padding: 13px 24px; min-height: 48px; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; display: flex; align-items: center; gap: 8px; }
 .btn-next { background: linear-gradient(135deg, #e8849a, #c0546a); color: white; box-shadow: 0 2px 12px rgba(192,84,106,0.3); }
 .btn-next:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
 .btn-next:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
