@@ -50,6 +50,12 @@
                   🗑 Löschen
                 </button>
               </div>
+              <div class="sig-line">
+                <span>Unterzeichnet:</span>
+                <span class="sig-line-name">{{ auth.userName }}</span>
+                <span class="sig-line-sep">·</span>
+                <span>{{ sigTimestamp }}</span>
+              </div>
               <p class="canvas-hint">
                 Hier unterschreiben — der Stift erfasst Maus &amp; Touch.
               </p>
@@ -97,6 +103,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { useCourierStore } from '../../stores/courier'
+import { useAuthStore } from '../../stores/auth'
 
 const props = defineProps({
   open:  { type: Boolean, default: false },
@@ -105,6 +112,18 @@ const props = defineProps({
 const emit = defineEmits(['close', 'signed'])
 
 const courier = useCourierStore()
+const auth    = useAuthStore()
+
+function formatDateTime(d) {
+  const dd   = String(d.getDate()).padStart(2, '0')
+  const mm   = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  const hh   = String(d.getHours()).padStart(2, '0')
+  const min  = String(d.getMinutes()).padStart(2, '0')
+  return `${dd}.${mm}.${yyyy} ${hh}:${min}`
+}
+
+const sigTimestamp = ref('')
 
 // ── Computed ──────────────────────────────────────
 const carrierLabel = computed(() => props.group?.carrier?.display_name || '')
@@ -195,6 +214,7 @@ function reset() {
   hasSignature.value = false
   errorText.value    = null
   signerName.value   = ''
+  sigTimestamp.value = formatDateTime(new Date())
   if (ctx && canvasRef.value) {
     ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
   }
@@ -339,8 +359,27 @@ function onCancel() {
   border-color: var(--color-danger);
 }
 .btn-clear:disabled { opacity: 0.4; cursor: not-allowed; }
+.sig-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 6px auto 0;
+  max-width: 500px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-family: 'DM Sans', sans-serif;
+}
+.sig-line-name {
+  font-weight: 600;
+  color: var(--color-text);
+}
+.sig-line-sep {
+  opacity: 0.4;
+}
+
 .canvas-hint {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   font-size: 11.5px;
   color: var(--color-text-muted);
   text-transform: none;
