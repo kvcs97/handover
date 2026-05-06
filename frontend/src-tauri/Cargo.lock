@@ -1256,7 +1256,7 @@ dependencies = [
 
 [[package]]
 name = "handover"
-version = "1.7.6"
+version = "1.7.7"
 dependencies = [
  "serde",
  "serde_json",
