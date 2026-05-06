@@ -756,7 +756,8 @@ def _get_courier_archive_path(db: Session) -> str:
 def _select_burn_target(shipment: CourierShipment) -> Optional[CourierDocument]:
     """Welches Doc bekommt die Unterschrift?
 
-    Priorität (laut Spec): PKL > Lieferschein > erstes Doc mit lokalem Pfad.
+    Priorität: PKL > Lieferschein > Rechnung > erstes Doc mit lokalem Pfad.
+    Rechnung wird nie gewählt, solange ein LS vorhanden ist.
     """
     docs = [d for d in shipment.documents if d.local_path and os.path.exists(d.local_path)]
     if not docs:
@@ -764,7 +765,12 @@ def _select_burn_target(shipment: CourierShipment) -> Optional[CourierDocument]:
     by_type: dict[str, CourierDocument] = {}
     for d in docs:
         by_type.setdefault(d.document_type, d)
-    return by_type.get("pkl") or by_type.get("lieferschein") or docs[0]
+    return (
+        by_type.get("pkl")
+        or by_type.get("lieferschein")
+        or by_type.get("rechnung")
+        or docs[0]
+    )
 
 
 def _safe_segment(value: str) -> str:

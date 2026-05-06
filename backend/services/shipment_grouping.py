@@ -88,8 +88,13 @@ def group_into_shipments(
         unassigned = []
 
     drafts = list(by_ls.values())
+    # Multi-LS-Mail: ungebundene Anhänge (z.B. Rechnungen mit 88XXXXXXXXX)
+    # gleichmäßig auf die bereits erkannten Sendungen verteilen statt einer
+    # separaten "unassigned"-Sendung — die Rechnung gehört zur selben Mail
+    # und damit implizit zum selben Carrier-Auftrag.
     if unassigned:
-        drafts.append(ShipmentDraft(delivery_note_numbers=[], attachments=unassigned))
+        for i, att in enumerate(unassigned):
+            drafts[i % len(drafts)].attachments.append(att)
     return drafts
 
 
