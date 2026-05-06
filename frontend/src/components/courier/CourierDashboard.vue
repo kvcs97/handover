@@ -269,7 +269,7 @@ onMounted(async () => {
 
 <style scoped>
 .courier-dashboard {
-  padding: 32px 48px 64px;
+  padding: 24px 32px 48px;
   font-family: 'DM Sans', sans-serif;
   color: var(--color-text);
   min-height: 100%;
@@ -303,7 +303,8 @@ onMounted(async () => {
   background: var(--accent-bg);
   border: 1px solid transparent;
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 10px 14px;
+  min-height: 44px;
   transition: border-color 150ms ease;
 }
 .date-picker:focus-within, .search:focus-within {
@@ -314,20 +315,21 @@ onMounted(async () => {
   background: transparent;
   outline: none;
   font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text);
   min-width: 0;
 }
-.search input { width: 180px; }
-.picker-icon, .search-icon { font-size: 13px; opacity: 0.7; }
+.search input { width: 190px; }
+.picker-icon, .search-icon { font-size: 15px; opacity: 0.7; }
 
 .filter-select {
-  padding: 7px 12px;
+  padding: 11px 14px;
+  min-height: 44px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text);
   cursor: pointer;
 }
@@ -338,7 +340,8 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 22px;
+  padding: 12px 24px;
+  min-height: 44px;
   background: var(--accent-primary);
   color: #fff;
   border: none;
@@ -354,11 +357,12 @@ onMounted(async () => {
 .btn-empty { margin-top: 18px; }
 
 .btn-ghost {
-  padding: 8px 16px;
+  padding: 12px 18px;
+  min-height: 44px;
   background: transparent;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   margin-top: 18px;
 }

@@ -28,9 +28,9 @@ const label = computed(() => LABELS[props.status] || props.status)
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
+  padding: 5px 11px;
   border-radius: 9999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   font-family: 'DM Sans', sans-serif;
   white-space: nowrap;

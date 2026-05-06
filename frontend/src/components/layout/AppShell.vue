@@ -146,12 +146,12 @@ function navigate(item) {
 
 /* ── Sidebar ── */
 .sidebar {
-  width: 220px; flex-shrink: 0;
+  width: 240px; flex-shrink: 0;
   background: #ffffff;
   border-right: 1px solid rgba(0,0,0,0.08);
   display: flex; flex-direction: column;
   justify-content: space-between;
-  padding: 24px 12px;
+  padding: 24px 14px;
 }
 
 .sidebar-brand {
@@ -188,12 +188,13 @@ function navigate(item) {
 
 .nav-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 9px 10px; border-radius: 10px;
+  padding: 11px 12px; border-radius: 10px;
+  min-height: 44px;
   border: none; background: none; cursor: pointer;
   text-align: left; width: 100%;
   font-family: 'DM Sans', sans-serif;
   font-size: 14px; font-weight: 400; color: #3a3a3c;
-  margin-bottom: 1px; transition: background 0.12s;
+  margin-bottom: 2px; transition: background 0.12s;
   position: relative;
 }
 .nav-item:hover:not(.disabled) { background: #f5f5f7; }
@@ -220,10 +221,10 @@ function navigate(item) {
 }
 .user-chip { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
 .user-avatar {
-  width: 30px; height: 30px;
+  width: 36px; height: 36px;
   background: linear-gradient(135deg, #f2a7b8, #c0546a);
   border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; color: white; flex-shrink: 0;
+  font-size: 13px; font-weight: 600; color: white; flex-shrink: 0;
 }
 .user-name {
   display: block; font-size: 13px; font-weight: 500; color: #1c1c1e;
@@ -232,8 +233,10 @@ function navigate(item) {
 .user-role { display: block; font-size: 11px; color: #98989f; }
 .btn-logout {
   background: none; border: none; color: #98989f;
-  font-size: 16px; cursor: pointer; padding: 6px;
-  border-radius: 8px; transition: all 0.15s; flex-shrink: 0;
+  font-size: 18px; cursor: pointer;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; transition: all 0.15s; flex-shrink: 0;
 }
 .btn-logout:hover { background: #f5f5f7; color: #1c1c1e; }
 

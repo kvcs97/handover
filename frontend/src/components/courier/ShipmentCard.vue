@@ -77,7 +77,7 @@ const printTooltip = computed(() => {
   grid-template-columns: minmax(180px, 220px) 1fr auto;
   gap: 16px;
   align-items: center;
-  padding: 14px 18px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--color-border);
   transition: background 150ms ease;
 }
@@ -145,13 +145,14 @@ const printTooltip = computed(() => {
 .btn-print {
   background: transparent;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  width: 32px; height: 30px;
+  border-radius: 10px;
+  width: 44px; height: 44px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 13px;
+  font-size: 17px;
   color: var(--color-text-muted);
   cursor: pointer;
   transition: all 150ms ease;
+  flex-shrink: 0;
 }
 .btn-print:hover:not(:disabled) {
   background: var(--accent-primary);
