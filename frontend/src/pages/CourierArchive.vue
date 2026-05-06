@@ -209,7 +209,7 @@ onMounted(async () => {
 
 <style scoped>
 .courier-archive {
-  padding: 32px 48px 64px;
+  padding: 24px 32px 48px;
   font-family: 'DM Sans', sans-serif;
   color: var(--color-text);
   min-height: 100%;
@@ -252,10 +252,11 @@ onMounted(async () => {
   color: var(--color-text-muted);
 }
 .field input, .field select {
-  padding: 8px 12px;
+  padding: 11px 14px;
+  min-height: 44px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-family: 'DM Sans', sans-serif;
   background: var(--color-surface);
 }
@@ -265,13 +266,15 @@ onMounted(async () => {
 }
 
 .btn-ghost {
-  padding: 9px 14px;
+  padding: 11px 18px;
+  min-height: 44px;
   background: transparent;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  font-size: 12.5px;
+  font-size: 13px;
   cursor: pointer;
   color: var(--color-text-muted);
+  align-self: flex-end;
 }
 .btn-ghost:hover { background: var(--accent-bg); color: var(--accent-primary); }
 
@@ -295,7 +298,7 @@ onMounted(async () => {
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--carrier-color);
   border-radius: 12px;
-  padding: 14px 18px;
+  padding: 16px 20px;
   margin-bottom: 8px;
   gap: 16px;
   transition: box-shadow 150ms ease, transform 150ms ease;
@@ -311,7 +314,7 @@ onMounted(async () => {
 }
 .ls {
   font-family: 'DM Mono', 'JetBrains Mono', monospace;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-text);
 }
@@ -323,7 +326,7 @@ onMounted(async () => {
 
 .meta-line {
   display: flex; align-items: center; gap: 6px;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--color-text-muted);
   flex-wrap: wrap;
 }
@@ -349,15 +352,16 @@ onMounted(async () => {
 
 .row-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .btn-icon {
-  width: 36px; height: 32px;
+  width: 44px; height: 44px;
   background: transparent;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 17px;
   cursor: pointer;
   color: var(--color-text-muted);
   display: inline-flex; align-items: center; justify-content: center;
   transition: all 150ms ease;
+  flex-shrink: 0;
 }
 .btn-icon:hover:not(:disabled) {
   background: var(--accent-primary);
