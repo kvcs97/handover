@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import api from '../api'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token    = ref(localStorage.getItem('handover_token') || null)
+  const token    = ref(null)
   const userName = ref(localStorage.getItem('handover_user') || '')
   const userRole = ref(localStorage.getItem('handover_role') || '')
   const userId   = ref(parseInt(localStorage.getItem('handover_uid') || '0') || null)
@@ -21,7 +21,6 @@ export const useAuthStore = defineStore('auth', () => {
     userName.value = res.data.user_name
     userRole.value = res.data.user_role
     userId.value   = res.data.user_id ?? null
-    localStorage.setItem('handover_token', token.value)
     localStorage.setItem('handover_user',  userName.value)
     localStorage.setItem('handover_role',  userRole.value)
     if (userId.value) localStorage.setItem('handover_uid', String(userId.value))
