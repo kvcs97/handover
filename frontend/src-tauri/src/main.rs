@@ -33,11 +33,29 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
         let _ = child.kill();
     }
+    // Warten bis Port 8000 geschlossen ist, bevor der Installer die exe ersetzen darf
+    tokio::task::spawn_blocking(|| wait_for_backend_shutdown(8)).await.ok();
     let updater = app.updater().map_err(|e| e.to_string())?;
     if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
         update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+// Pollt Port 8000 bis er nicht mehr erreichbar ist (Backend vollständig gestoppt).
+fn wait_for_backend_shutdown(timeout_secs: u64) {
+    let addr = "127.0.0.1:8000".parse().unwrap();
+    let deadline = Duration::from_secs(timeout_secs);
+    let start = Instant::now();
+    loop {
+        if TcpStream::connect_timeout(&addr, Duration::from_millis(200)).is_err() {
+            return;
+        }
+        if start.elapsed() >= deadline {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(300));
+    }
 }
 
 // Pollt Port 8000 bis das Backend antwortet oder der Timeout abläuft.
