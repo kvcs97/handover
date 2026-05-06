@@ -1,15 +1,15 @@
 # HandOver Courier – Entwicklungs-Tracker
 
-**Letzte Aktualisierung:** 05.05.2026
-**Gesamtfortschritt:** 38 / 42 Aufgaben abgeschlossen (90%) — Implementierung fertig, aktiv in Bug-Fix-Phase nach Adam-Tests
-**Aktuelle Release-Version:** v1.7.5 (CI-Workflow-Fix: Fallback-Step nur bei tauri-action-Fehler, pwsh statt powershell)
+**Letzte Aktualisierung:** 06.05.2026
+**Gesamtfortschritt:** 39 / 46 Aufgaben abgeschlossen (85%) — v1.7.6 live, Tasks 7.6–7.9 in Arbeit
+**Aktuelle Release-Version:** v1.7.6 (Pydantic-Fix delivery_note_numbers)
 
 ---
 
 ## 🔵 Aktueller Fokus
 
-> **Workflow-Fix (CI) + Adam testet v1.7.4**
-> v1.7.4-Release ist vollständig (tauri-action hat alle Artefakte inkl. latest.json hochgeladen). Der Fallback-Step im Workflow ist jedoch mit einem PowerShell-Parse-Error gescheitert (em-dash `—` + `shell: powershell` = PS 5.1 liest UTF-8 ohne BOM mit falscher Codepage). Fix: `if: steps.tauri.outcome != 'success'` (läuft nur wenn nötig) + `shell: pwsh` (PS 7, korrekte UTF-8-Unterstützung) + em-dash durch ASCII-Minus ersetzt. Kein neues Release-Tag nötig, da v1.7.4 korrekt ist. Adam testet v1.7.4, danach UI-Polish.
+> **UI-Polish & Logik-Fixes nach Adam-Echttest (v1.7.6)**
+> Workflow und Pydantic-Bug sind behoben. Adam hat v1.7.6 erfolgreich getestet: Kurier-Mails werden gefunden, Unterschrift funktioniert. Vier neue Aufgaben aus dem Test: Unterschrifts-Canvas verkleinern + zentrieren (7.6), Signatur-Zeile mit eingeloggtem Mitarbeiter-Namen + Zeitstempel (7.7), Multi-LS-Mails als eine Sendung statt gesplittet (7.8), Dokument-Priorität für Unterschrift: LS vor Rechnung (7.9).
 
 ---
 
@@ -138,8 +138,12 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 7.3 | Mode-Switch testen: Wechsel zwischen LKW und Kurier, State bleibt erhalten | ⏳ | Adam-Test |
 | 7.4 | Animationen & Übergänge feintunen (Crossfade, Aufklapp-Animation, Toast) | ✅ | Modal-Fade (180ms), Toast-Slide+Fade (250ms), Skeleton-Pulse (1.4s), CarrierGroup-Collapse (250ms), TransitionGroup für Carrier-Liste mit move-Transition (300ms), Doc-Chip-Hover (150ms), **Mode-Crossfade**: `applyMode(mode, animate=true)` triggert beim Toggle eine `body.mode-switching`-Klasse mit 220ms keyframe-Fade (initial-Load animiert nicht — nur User-Toggles) |
 | 7.5 | PyInstaller Build mit neuem Kurier-Modul testen | ⏳ | Adam baut |
+| 7.6 | UI: Unterschrifts-Canvas verkleinern + horizontal zentrieren | ✅ | `.canvas-frame`: `max-width: 500px; margin: 0 auto`, `.sig-canvas`: `height: 220px → 150px`. Hint-Text `text-align: center`. |
+| 7.7 | UI: Signatur-Zeile unter dem Canvas — eingeloggter Mitarbeiter-Name + Datum/Uhrzeit | ⏳ | Unterhalb der Unterschriftslinie: "Unterzeichnet: [Name des eingeloggten Users] · DD.MM.YYYY HH:MM". Name kommt aus dem Auth-State (eingeloggter Mitarbeiter), nicht aus dem optionalen Fahrer-Name-Feld |
+| 7.8 | Logik: Rechnungs-Dokumente der richtigen Sendung zuordnen statt neue unassigned-Sendung | ⏳ | Problem: Rechnungen haben eine eigene Nummer (`88XXXXXXXXX`), die nicht mit der LS-Nummer (`80XXXXXXXXX`) übereinstimmt → `shipment_grouping.py` findet keinen Treffer und erstellt eine separate unassigned-Sendung. Fix: Nach der nummernbasierten Zuordnung alle übrigen Dokumente derselben Mail den bereits erkannten Sendungen dieser Mail zuschlagen (Single-LS-Mail → direkt dazu; Multi-LS-Mail → zur Sendung mit dem ähnlichsten LS, oder gleichmäßig verteilen). In `services/shipment_grouping.py` |
+| 7.9 | Logik: Dokument-Priorität für Unterschrift — LS immer vor Rechnung | ⏳ | Aktuell: PKL > Lieferschein > erstes Dokument. Erweitern auf PKL > Lieferschein > Rechnung > andere. Wenn Mail sowohl LS als auch Rechnung enthält, soll immer der LS unterschrieben werden, nie die Rechnung |
 
-**Phase-Fortschritt:** 1 / 5 (20%) — Rest sind manuelle Test/Build-Tasks
+**Phase-Fortschritt:** 2 / 9 (22%) — manuelle Tests + 4 neue Polish-Tasks aus Adam-Echttest
 
 ---
 
@@ -193,7 +197,8 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 9 | 03.05.2026 | **Bugfix-Release v1.7.2** (commit 99bf5ba, Tag v1.7.2): a) Eigene Kurier-Archiv-Seite (`pages/CourierArchive.vue` mit Datum-/Carrier-Filter, Suche, PDF-Vorschau in neuem Tab via Blob-URL) ersetzt im Kurier-Modus die LKW-Archive-Page; Backend `GET /api/courier/archive` mit Joined-Carrier/Sendung/Signatur und `GET /api/courier/archive/{id}/file`. b) Pfad-Trennung: `pdf_gen.generate_pdf` schreibt `handover_*` ab jetzt IMMER nach `~/.handover/archive`, der user-konfigurierte Pfad ist nur noch für `signed_*`. c) Filename-Vereinfachung: `signed_<originalname>` statt mit Referenz/LS/doc_id-Prefix bei LKW (`outlook_router`) und Kurier (`_archive_signed_pdf`). d) Bessere Fehler-Texte beim IMAP-Abruf (Connection/Token/Login-spezifisch, 502 statt 500). | Adam testet, meldet weitere Bugs |
 | 10 | 03.05.2026 | **Bugfix-Release v1.7.3** (commit 094593e, Tag v1.7.3): Adam meldet "Network Error" beim Mail-Abruf an Tagen mit Mails (leere Tage funktionieren). Root-Cause-Analyse: alter Code lädt ALLE Mails seit gestern komplett (RFC822 inkl. Anhänge), filtert erst danach im Code → axios-Timeout bei vollen Postfächern. **IMAP-Fetch-Refactoring** in `services/courier_email.py`: zwei-Phasen-Fetch — erst nur `BODY.PEEK[HEADER.FIELDS (DATE SUBJECT)]` pro Mail, nur passende Mails bekommen den vollen Body. **Pro-Mail-Transactions** im Loop (eine kaputte Mail rollt nicht alles zurück, Failed-List ins Logfile). **Frontend-Timeout** 60s→180s. **File-Logger** (`~/.handover/handover.log`, RotatingFileHandler 2MB×3) für `courier.email`/`courier.router`/`uvicorn.error`. **Default-Modus-Fix**: localStorage-Check entfernt, Settings-Wert gewinnt IMMER beim App-Start. CI-Build der v1.7.3 ist erfolgreich, aber `tauri-action` failt beim Upload des `latest.json` als 5. Asset (Race-Condition-Bug in tauri-action 0.5.x) → Auto-Updater bekommt kein Update-Signal. | Workflow-Fix nötig |
 | 11 | 04.05.2026 | **CI-Fix v1.7.4** (commit a1c927f, Tag v1.7.4): Workflow `release.yml` erweitert — `tauri-action` läuft mit `continue-on-error: true`, danach zwei neue Steps: `Generate latest.json (fallback)` baut die Datei aus den vorhandenen `*.sig`-Files (msi + setup.exe) als UTF-8 ohne BOM zusammen, `Upload latest.json` schiebt sie idempotent via `softprops/action-gh-release@v2` zum Tag-Release nach. Plus: `unused_mut`-Warnings in `src-tauri/src/main.rs` weg. Damit greift der Auto-Updater jetzt zuverlässig, auch wenn tauri-action beim primären Upload stolpert. | Adam testet v1.7.4 (IMAP-Fix, Default-Modus, Archiv) und meldet UI-Polish-Wünsche |
-| 12 | 05.05.2026 | **CI-Workflow-Fix v1.7.5**: v1.7.4-CI war inhaltlich korrekt (alle Artefakte + latest.json hochgeladen), aber der Fallback-Step scheiterte mit PowerShell-Parse-Error. Root-Cause: `shell: powershell` (PS 5.1) liest UTF-8 ohne BOM mit Windows-1252-Codepage — Byte 0x94 des em-Dash `—` wird als `"` (RIGHT DOUBLE QUOTATION MARK) interpretiert und bricht die String-Terminierung. Fix: `if: always()` → `if: steps.tauri.outcome != 'success'` (läuft nur bei echtem Fehler), `shell: powershell` → `shell: pwsh` (PS 7, UTF-8-native), em-Dash durch `-` ersetzt, `"$msiPath.sig"` → `"${msiPath}.sig"`. Versions-Bump auf 1.7.5 in package.json / tauri.conf.json / Cargo.toml / Cargo.lock. Tag v1.7.5 gepusht um CI-Fix zu verifizieren. | Warten ob CI grün läuft, dann Adam testet / UI-Polish |
+| 12 | 05.05.2026 | **CI-Workflow-Fix v1.7.5** + **Pydantic-Fix v1.7.6**: v1.7.5 — Fallback-Step `if: always()` → `if: steps.tauri.outcome != 'success'`, `shell: powershell` → `shell: pwsh` (PS 5.1 las UTF-8 mit Windows-1252-Codepage, Byte 0x94 des em-Dash wurde als String-Terminator `"` interpretiert). v1.7.6 — `ShipmentOut` ValidationError bei `delivery_note_numbers=[]`: Validator aus `ShipmentBase` in `ShipmentCreate` verschoben, damit unmatched Sendungen (Multi-LS-Mails) geladen werden können. Adam testet v1.7.6 erfolgreich: Kurier-Mails gefunden + Unterschrift funktioniert. Neue Polish-Tasks 7.6–7.9 aus dem Echttest aufgenommen. | Tasks 7.6–7.9 umsetzen (Canvas, Signatur-Zeile, Multi-LS-Gruppierung, Dok-Priorität) |
+| 13 | 06.05.2026 | **Task 7.6 (Canvas-Verkleinerung)**: `CarrierSignature.vue` — `.canvas-frame` `max-width: 500px; margin: 0 auto`, `.sig-canvas` `height: 220px → 150px`, `.canvas-hint` `text-align: center`. vite build OK (127 Module, 724ms). | Task 7.7 (Signatur-Zeile mit eingeloggtem User + Timestamp) |
 
 ---
 

@@ -310,11 +310,14 @@ function onCancel() {
   border-radius: 12px;
   background: #FAFAFA;
   overflow: hidden;
+  max-width: 500px;
+  margin: 0 auto;
+  width: 100%;
 }
 .sig-canvas {
   display: block;
   width: 100%;
-  height: 220px;
+  height: 150px;
   cursor: crosshair;
   background: white;
   touch-action: none;
@@ -343,6 +346,7 @@ function onCancel() {
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
+  text-align: center;
 }
 
 /* Signer-Input */
