@@ -37,9 +37,9 @@ const courier = useCourierStore()
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: stretch;
-  height: 36px;
-  min-width: 160px;
-  padding: 3px;
+  height: 44px;
+  min-width: 180px;
+  padding: 4px;
   background: rgba(0, 0, 0, 0.04);
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.05);
@@ -57,12 +57,12 @@ const courier = useCourierStore()
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--color-text-muted);
   border-radius: 999px;
   transition: color 200ms ease;
-  padding: 0 10px;
+  padding: 0 12px;
   white-space: nowrap;
 }
 .seg:hover { color: var(--color-text); }
@@ -73,10 +73,10 @@ const courier = useCourierStore()
 
 .indicator {
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc(50% - 3px);
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
   border-radius: 999px;
   background: var(--accent-primary);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);

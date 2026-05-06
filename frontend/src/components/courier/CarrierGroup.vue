@@ -195,7 +195,7 @@ const signatureTooltip = computed(() =>
   font-size: 12px;
   color: var(--color-text-muted);
   background: var(--accent-bg);
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 9999px;
 }
 
@@ -206,8 +206,8 @@ const signatureTooltip = computed(() =>
   flex-wrap: wrap;
 }
 .meta-pill {
-  font-size: 11px;
-  padding: 3px 9px;
+  font-size: 12px;
+  padding: 4px 10px;
   border-radius: 9999px;
   font-weight: 500;
 }
@@ -215,8 +215,8 @@ const signatureTooltip = computed(() =>
 .meta-pill.printed-count { background: rgba(245,158,11,0.12); color: #B45309; }
 
 .signature-pill {
-  font-size: 11px;
-  padding: 3px 10px;
+  font-size: 12px;
+  padding: 4px 11px;
   border-radius: 9999px;
   font-weight: 500;
 }
@@ -236,7 +236,7 @@ const signatureTooltip = computed(() =>
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
-  padding: 12px 18px;
+  padding: 14px 20px;
   background: #FAFAFA;
   border-top: 1px solid var(--color-border);
 }
@@ -261,11 +261,15 @@ const signatureTooltip = computed(() =>
 
 .btn-primary, .btn-ghost {
   font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 12px 20px;
+  min-height: 44px;
+  border-radius: 10px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   transition: background 150ms ease, opacity 150ms ease;
 }
 .btn-primary {

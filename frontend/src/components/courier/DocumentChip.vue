@@ -59,10 +59,11 @@ async function onToggle() {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: 7px 13px;
+  min-height: 32px;
   border-radius: 9999px;
   font-family: 'DM Sans', sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   border: 1px solid transparent;
   background: var(--color-border);
@@ -92,6 +93,6 @@ async function onToggle() {
   font-weight: 600;
 }
 
-.chip-icon  { font-size: 11px; line-height: 1; }
+.chip-icon  { font-size: 12px; line-height: 1; }
 .chip-label { font-family: 'DM Mono', 'JetBrains Mono', monospace; }
 </style>
