@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from database import get_db, Handover, Signature, Carrier, AuditLog
 from routers.auth import get_current_user
 from services.pdf_gen import generate_pdf
@@ -125,8 +125,27 @@ def sign_handover(data: SignatureSubmit, db: Session = Depends(get_db), user=Dep
 
 @router.get("/list")
 def list_handovers(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    handovers = db.query(Handover).order_by(Handover.created_at.desc()).limit(100).all()
-    return handovers
+    handovers = (
+        db.query(Handover)
+        .options(joinedload(Handover.carrier))
+        .order_by(Handover.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    return [
+        {
+            "id":          h.id,
+            "referenz":    h.referenz,
+            "driver_name": h.driver_name,
+            "truck_plate": h.truck_plate,
+            "status":      h.status,
+            "pdf_path":    h.pdf_path,
+            "created_at":  h.created_at.isoformat() if h.created_at else None,
+            "signed_at":   h.signed_at.isoformat() if h.signed_at else None,
+            "carrier":     {"id": h.carrier.id, "company_name": h.carrier.company_name} if h.carrier else None,
+        }
+        for h in handovers
+    ]
 
 
 @router.get("/{handover_id}/pdf")
