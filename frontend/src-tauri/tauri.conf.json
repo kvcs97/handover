@@ -1,6 +1,6 @@
 {
   "productName": "HandOver",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "identifier": "com.shoriu.handover",
   "build": {
     "beforeDevCommand": "npm run dev",

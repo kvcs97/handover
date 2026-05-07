@@ -26,9 +26,7 @@ def get_stats(db: Session = Depends(get_db), user=Depends(get_current_user)):
     lkw_archived   = db.query(func.count(Handover.id)).filter(
         Handover.status == "archived"
     ).scalar() or 0
-    lkw_carriers   = db.query(func.count(Carrier.id)).filter(
-        Carrier.active == True
-    ).scalar() or 0
+    lkw_carriers   = db.query(func.count(Carrier.id)).scalar() or 0
 
     # ── Kurier ───────────────────────────────────────────────
     courier_total     = db.query(func.count(CourierShipment.id)).scalar() or 0
