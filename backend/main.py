@@ -5,7 +5,7 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 from database import init_db
-from routers import auth, handover, carriers, settings, users
+from routers import auth, handover, carriers, settings, users, stats
 from routers import outlook_router, license_router, courier
 
 
@@ -57,6 +57,7 @@ app.include_router(settings.router,       prefix="/settings", tags=["Settings"])
 app.include_router(outlook_router.router, prefix="/outlook",  tags=["Outlook"])
 app.include_router(license_router.router, prefix="/license",  tags=["License"])
 app.include_router(courier.router,        prefix="/api/courier", tags=["Courier"])
+app.include_router(stats.router,          prefix="/stats",        tags=["Stats"])
 
 @app.get("/health")
 def health():

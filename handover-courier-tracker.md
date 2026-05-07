@@ -1,15 +1,15 @@
 # HandOver Courier – Entwicklungs-Tracker
 
 **Letzte Aktualisierung:** 06.05.2026
-**Gesamtfortschritt:** 44 / 48 Aufgaben abgeschlossen (92%) — v1.8.0 live, Tablet-UI-Optimierung abgeschlossen
-**Aktuelle Release-Version:** v1.8.0 (Tablet/Touch-Optimierung LKW + Kurier + Lesbarkeit)
+**Gesamtfortschritt:** 44 / 48 Aufgaben abgeschlossen (92%) — v1.9.0 live, Update-Installer-Fix + kein Auto-Login
+**Aktuelle Release-Version:** v1.9.0 (Update-Installer-Shutdown-Wait + Pflichtanmeldung bei App-Start)
 
 ---
 
 ## 🔵 Aktueller Fokus
 
-> **Tablet/Touch-Optimierung abgeschlossen (v1.8.0)**
-> Tasks 7.6–7.9 (Canvas, Signatur-Zeile, Multi-LS-Gruppierung, Dok-Priorität) und 7.10–7.11 (Tablet-UI Kurier + LKW) sind fertig. Alle interaktiven Elemente haben jetzt 44px Touch-Targets, konsistentes Padding (24/32px) und min. 12px Schriftgröße. Nächster Schritt: Adam testet 7.1–7.3, 7.5 (E2E, Edge Cases, Mode-Switch, PyInstaller-Build).
+> **v1.9.0: Update-Installer-Fix + Pflichtanmeldung (v1.9.0)**
+> Zwei App-weite Bugfixes: (1) Update-Installation schlägt nicht mehr fehl, weil Backend-Prozess jetzt per Port-Poll auf vollständiges Herunterfahren wartet, bevor der Installer läuft. (2) Kein Auto-Login mehr — Token wird nicht in localStorage gespeichert, jeder App-Start erfordert neue Anmeldung. Nächster Schritt: Adam testet 7.1–7.3 + 7.5 (E2E, Edge Cases, Mode-Switch, PyInstaller-Build).
 
 ---
 
@@ -176,6 +176,8 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 06.05.2026 | Touch-Target-Minimum | Universell 44px `min-height` auf allen interaktiven Elementen (kein Media-Query-Ansatz) | Apple/Google HIG: 44pt Minimum. Universelle Änderung wirkt auf Tablet und Desktop gleichwertig — Desktop fühlt sich spaciger an, kein Layoutbruch. Kein responsives System nötig. |
 | 06.05.2026 | Tablet-Padding | Alle Pages von `40px 44px` → `24px 32px` reduziert | 11"-Tablet (~1024px nach Sidebar) hatte mit 88px horizontalem Gesamt-Padding zu wenig Nutzfläche. `24/32px` ist ausreichend für den Weißraum-Look ohne zu viel Platz zu verschwenden. |
 | 06.05.2026 | Sig-Canvas LKW-Modus | LKW-Handover-Canvas (in `Handover.vue`) auf `max-width: 500px / height: 160px` vereinheitlicht | Konsistenz mit Kurier-Modus (`CarrierSignature.vue`). Beide Unterschriftsfelder sehen jetzt gleich aus — ein Canvas-Standard für die ganze App. |
+| 06.05.2026 | Update-Installer-Wait | `install_update` in `main.rs` wartet nach `child.kill()` via `wait_for_backend_shutdown(8)` (Port-Poll) bis Port 8000 geschlossen ist, bevor `download_and_install` läuft | Race-Condition: kill() schickt nur das Signal, der Prozess braucht Zeit zum Beenden. Installer schlug fehl, weil Backend noch lief. |
+| 06.05.2026 | Kein Auto-Login | `token = ref(null)` in `auth.js` — Token wird nicht mehr in localStorage geschrieben/gelesen; nur `handover_user`/`role`/`uid` bleiben im localStorage | Adam-Wunsch: bei jedem App-Start neu einloggen. Token existiert nur in-memory für die aktuelle Session. |
 
 ---
 
@@ -206,6 +208,7 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 13 | 06.05.2026 | **Tasks 7.6–7.9**: 7.6 Canvas-Verkleinerung (`max-width: 500px`, `height: 150px`, zentriert). 7.7 Signatur-Zeile unter Canvas ("Unterzeichnet: [userName] · DD.MM.YYYY HH:MM", `useAuthStore`, `sigTimestamp` in `reset()`). 7.8 Rechnungs-Zuordnung bei Multi-LS: Round-Robin statt separater unassigned-Sendung (`shipment_grouping.py`). 7.9 Burn-Target-Priorität: PKL > LS > Rechnung > docs[0] (`_select_burn_target` in `courier.py`). vite build OK (127 Module). Push v1.7.8. | Tablet-UI optimieren |
 | 14 | 06.05.2026 | **Task 7.10 — Tablet/Touch Kurier-Modus (v1.7.9)**: `AppShell` Sidebar 240px, Nav-Items 44px. `ModeSwitch` 44px. `CourierDashboard` Padding 24/32, Toolbar-Controls 44px. `CarrierGroup` Footer-Buttons 44px + font 14px. `ShipmentCard` Print-Button 44×44px. `DocumentChip` 32px, font 12px. `StatusBadge` font 12px. Alle Touch-Targets auf 44px-Minimum gebracht. | LKW-Seiten optimieren |
 | 15 | 06.05.2026 | **Task 7.11 — Tablet/Touch LKW + Lesbarkeit (v1.8.0)**: Alle Pages Padding 24/32px. `Dashboard` Btn 44px, Tabelle 14px, Chips 12px. `Handover` Buttons 44–48px, Sig-Canvas max-width 500px/160px zentriert. `Archive` Suche+Filter 44px, Tabelle 14px, Paginierung 44px. `CourierArchive` Felder 44px, Btn-Icon 44×44px, Meta-Zeile 12.5px. Globale Lesbarkeit: min. 12px Schriftgröße überall. vite build OK. Push v1.8.0. | Adam testet 7.1–7.3 + 7.5 |
+| 16 | 06.05.2026 | **Bugfix v1.9.0 — Update-Installer + kein Auto-Login**: (1) `main.rs`: neue `wait_for_backend_shutdown(8)`-Hilfsfunktion pollt Port 8000 bis er geschlossen ist; `install_update` ruft sie nach `child.kill()` auf (`tokio::task::spawn_blocking`) — Installer startet erst wenn Backend wirklich weg ist. (2) `auth.js`: `token = ref(null)` auf Startup, kein `localStorage.setItem('handover_token')` mehr beim Login — Token existiert nur in-memory. `logout()` bereinigt weiterhin den alten Key. vite build OK. Push v1.9.0. | Adam testet Update-Flow + Login-Verhalten |
 
 ---
 
