@@ -1,15 +1,15 @@
 # HandOver Courier – Entwicklungs-Tracker
 
-**Letzte Aktualisierung:** 06.05.2026
-**Gesamtfortschritt:** 44 / 48 Aufgaben abgeschlossen (92%) — v1.9.0 live, Update-Installer-Fix + kein Auto-Login
-**Aktuelle Release-Version:** v1.9.0 (Update-Installer-Shutdown-Wait + Pflichtanmeldung bei App-Start)
+**Letzte Aktualisierung:** 07.05.2026
+**Gesamtfortschritt:** 44 / 48 Aufgaben abgeschlossen (92%) — v1.10.0 live, Statistik-Seite + LKW-Timeout-Fix + Drucker-Suche PowerShell
+**Aktuelle Release-Version:** v1.10.0 (Statistik-Seite, LKW-Sign-Timeout-Fix, Drucker via Get-Printer)
 
 ---
 
 ## 🔵 Aktueller Fokus
 
-> **v1.9.0: Update-Installer-Fix + Pflichtanmeldung (v1.9.0)**
-> Zwei App-weite Bugfixes: (1) Update-Installation schlägt nicht mehr fehl, weil Backend-Prozess jetzt per Port-Poll auf vollständiges Herunterfahren wartet, bevor der Installer läuft. (2) Kein Auto-Login mehr — Token wird nicht in localStorage gespeichert, jeder App-Start erfordert neue Anmeldung. Nächster Schritt: Adam testet 7.1–7.3 + 7.5 (E2E, Edge Cases, Mode-Switch, PyInstaller-Build).
+> **v1.10.0: Statistik-Seite + Bugfixes**
+> (1) Neuer Tab "Statistik" in der Sidebar (Verwaltung, zwischen Archiv und Benutzer) — zeigt LKW- und Kurier-Kennzahlen (Total, laufendes Jahr, heute, Archiviert, Carrier) über neuen `/stats`-Backend-Endpoint, in beiden Modi erreichbar. Karten-Grid ist datengetrieben und einfach erweiterbar. (2) LKW-Mode Timeout-Bug behoben: `/handover/sign` und `/outlook/process` erhalten per-Request-Timeouts (60s / 120s). (3) Drucker-Suche nutzt PowerShell `Get-Printer` — zeigt exakt dieselbe Liste wie Windows-Einstellungen. Nächster Schritt: Adam testet 7.1–7.3 + 7.5.
 
 ---
 
@@ -178,6 +178,9 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 06.05.2026 | Sig-Canvas LKW-Modus | LKW-Handover-Canvas (in `Handover.vue`) auf `max-width: 500px / height: 160px` vereinheitlicht | Konsistenz mit Kurier-Modus (`CarrierSignature.vue`). Beide Unterschriftsfelder sehen jetzt gleich aus — ein Canvas-Standard für die ganze App. |
 | 06.05.2026 | Update-Installer-Wait | `install_update` in `main.rs` wartet nach `child.kill()` via `wait_for_backend_shutdown(8)` (Port-Poll) bis Port 8000 geschlossen ist, bevor `download_and_install` läuft | Race-Condition: kill() schickt nur das Signal, der Prozess braucht Zeit zum Beenden. Installer schlug fehl, weil Backend noch lief. |
 | 06.05.2026 | Kein Auto-Login | `token = ref(null)` in `auth.js` — Token wird nicht mehr in localStorage geschrieben/gelesen; nur `handover_user`/`role`/`uid` bleiben im localStorage | Adam-Wunsch: bei jedem App-Start neu einloggen. Token existiert nur in-memory für die aktuelle Session. |
+| 07.05.2026 | LKW-Sign Timeout | `/handover/sign` und `/outlook/process` erhalten per-Request-Timeouts (60s / 120s) statt globalem 10s-Limit | PDF-Generierung + Signatur-Burn-In dauert > 10s → axios ECONNABORTED. Konsistent mit Kurier-Store-Muster. |
+| 07.05.2026 | Drucker-Suche | `GET /settings/printers` nutzt PowerShell `Get-Printer` statt `win32print.EnumPrinters` | `Get-Printer` liefert exakt dieselbe Liste wie Windows-Einstellungen. Kein `pywin32` nötig. Type 0=lokal, 1=Netzwerk direkt aus PowerShell. |
+| 07.05.2026 | Statistik-Seite | Neuer Tab "Statistik" in Sidebar (Verwaltung, zwischen Archiv und Benutzer) mit eigenem Backend-Endpoint `/stats` | Dashboard-Stats-Kästchen waren unzuverlässig (nur Heute-Daten, keine echte Aggregation). Dedizierte Seite mit Lifetime-/Jahres-/Heute-Zahlen für LKW + Kurier. Datengetriebene Karten — neue Statistik = neuer Array-Eintrag, kein HTML nötig. |
 
 ---
 
@@ -209,6 +212,7 @@ Status-Legende: ✅ Fertig · 🔄 In Arbeit · ⏳ Offen · ❌ Blockiert · �
 | 14 | 06.05.2026 | **Task 7.10 — Tablet/Touch Kurier-Modus (v1.7.9)**: `AppShell` Sidebar 240px, Nav-Items 44px. `ModeSwitch` 44px. `CourierDashboard` Padding 24/32, Toolbar-Controls 44px. `CarrierGroup` Footer-Buttons 44px + font 14px. `ShipmentCard` Print-Button 44×44px. `DocumentChip` 32px, font 12px. `StatusBadge` font 12px. Alle Touch-Targets auf 44px-Minimum gebracht. | LKW-Seiten optimieren |
 | 15 | 06.05.2026 | **Task 7.11 — Tablet/Touch LKW + Lesbarkeit (v1.8.0)**: Alle Pages Padding 24/32px. `Dashboard` Btn 44px, Tabelle 14px, Chips 12px. `Handover` Buttons 44–48px, Sig-Canvas max-width 500px/160px zentriert. `Archive` Suche+Filter 44px, Tabelle 14px, Paginierung 44px. `CourierArchive` Felder 44px, Btn-Icon 44×44px, Meta-Zeile 12.5px. Globale Lesbarkeit: min. 12px Schriftgröße überall. vite build OK. Push v1.8.0. | Adam testet 7.1–7.3 + 7.5 |
 | 16 | 06.05.2026 | **Bugfix v1.9.0 — Update-Installer + kein Auto-Login**: (1) `main.rs`: neue `wait_for_backend_shutdown(8)`-Hilfsfunktion pollt Port 8000 bis er geschlossen ist; `install_update` ruft sie nach `child.kill()` auf (`tokio::task::spawn_blocking`) — Installer startet erst wenn Backend wirklich weg ist. (2) `auth.js`: `token = ref(null)` auf Startup, kein `localStorage.setItem('handover_token')` mehr beim Login — Token existiert nur in-memory. `logout()` bereinigt weiterhin den alten Key. vite build OK. Push v1.9.0. | Adam testet Update-Flow + Login-Verhalten |
+| 17 | 07.05.2026 | **v1.10.0 — Statistik-Seite + Bugfixes**: (1) LKW-Mode Timeout-Bug behoben (`Handover.vue`: per-Request-Timeouts 60s/120s auf `/handover/sign` + `/outlook/process`). (2) Drucker-Suche auf PowerShell `Get-Printer` umgestellt (`settings.py`) — zeigt exakt Windows-Einstellungen-Liste. (3) Neuer Backend-Router `routers/stats.py` mit `GET /stats` (LKW + Kurier: total/this_year/today/archived/carriers). (4) Neue Seite `pages/Statistics.vue` mit datengetriebenem Karten-Grid. (5) Dashboard-Stats-Row entfernt. AppShell: Statistik-Tab in adminItems zwischen Archiv und Benutzer, Routing in LKW+Kurier-Modus. vite build OK (129 Module, 731ms). Push v1.10.0. | Adam testet 7.1–7.3 + 7.5 |
 
 ---
 
