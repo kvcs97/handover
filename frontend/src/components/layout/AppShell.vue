@@ -63,16 +63,18 @@
       <template v-if="courierStore.mode === 'courier'">
         <CourierDashboard v-if="currentPage === 'dashboard' || currentPage === 'handover'" />
         <CourierArchive   v-else-if="currentPage === 'archive'" />
+        <StatisticsPage   v-else-if="currentPage === 'statistics'" />
         <UsersPage        v-else-if="currentPage === 'users' && authStore.isAdmin" />
         <SettingsPage     v-else-if="currentPage === 'settings' && authStore.isAdmin" />
       </template>
       <!-- LKW-Modus (bestehend) -->
       <template v-else>
-        <Dashboard    v-if="currentPage === 'dashboard'" @navigate="currentPage = $event" />
-        <HandoverPage v-else-if="currentPage === 'handover'" />
-        <ArchivePage  v-else-if="currentPage === 'archive'" />
-        <UsersPage    v-else-if="currentPage === 'users' && authStore.isAdmin" />
-        <SettingsPage v-else-if="currentPage === 'settings' && authStore.isAdmin" />
+        <Dashboard      v-if="currentPage === 'dashboard'" @navigate="currentPage = $event" />
+        <HandoverPage   v-else-if="currentPage === 'handover'" />
+        <ArchivePage    v-else-if="currentPage === 'archive'" />
+        <StatisticsPage v-else-if="currentPage === 'statistics'" />
+        <UsersPage      v-else-if="currentPage === 'users' && authStore.isAdmin" />
+        <SettingsPage   v-else-if="currentPage === 'settings' && authStore.isAdmin" />
       </template>
     </main>
 
@@ -87,6 +89,7 @@ import { useCourierStore }  from '../../stores/courier'
 import Dashboard        from '../../pages/Dashboard.vue'
 import HandoverPage     from '../../pages/Handover.vue'
 import ArchivePage      from '../../pages/Archive.vue'
+import StatisticsPage   from '../../pages/Statistics.vue'
 import UsersPage        from '../../pages/Users.vue'
 import SettingsPage     from '../../pages/Settings.vue'
 import ModeSwitch       from '../shared/ModeSwitch.vue'
@@ -109,9 +112,10 @@ const workflowItems = computed(() =>
       ],
 )
 const adminItems = [
-  { page: 'archive',  icon: '🗂',  label: 'Archiv' },
-  { page: 'users',    icon: '👤',  label: 'Benutzer',      role: 'admin' },
-  { page: 'settings', icon: '⚙️',  label: 'Einstellungen', role: 'admin' },
+  { page: 'archive',    icon: '🗂',  label: 'Archiv' },
+  { page: 'statistics', icon: '📊',  label: 'Statistik' },
+  { page: 'users',      icon: '👤',  label: 'Benutzer',      role: 'admin' },
+  { page: 'settings',   icon: '⚙️',  label: 'Einstellungen', role: 'admin' },
 ]
 
 onMounted(() => {

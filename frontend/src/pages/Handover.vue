@@ -427,7 +427,7 @@ async function submitSignature() {
         truck_plate:   truckPlate.value || '',
         employee_name: employeeName.value,
         sign_date:     today.value,
-      })
+      }, { timeout: 120000 })
       signedPdfs.value = res.data.results.filter(r => r.status === 'signed')
 
       const errors = res.data.results.filter(r => r.status === 'error')
@@ -444,7 +444,7 @@ async function submitSignature() {
       signer_name:   driverName.value || 'Unbekannt',
       employee_name: employeeName.value,
       sign_date:     today.value,
-    })
+    }, { timeout: 60000 })
 
     if (signRes.data?.pdf_error) {
       throw new Error('PDF-Generierung fehlgeschlagen: ' + signRes.data.pdf_error)

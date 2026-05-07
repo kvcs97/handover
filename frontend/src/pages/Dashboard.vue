@@ -11,14 +11,6 @@
       </button>
     </div>
 
-    <div class="stats-row">
-      <div class="stat-card" v-for="(s, i) in stats" :key="i" :style="`animation-delay:${i*0.07}s`">
-        <div class="stat-val">{{ s.value }}</div>
-        <div class="stat-label">{{ s.label }}</div>
-        <div class="stat-trend" :class="s.trendClass" v-if="s.trend">{{ s.trend }}</div>
-      </div>
-    </div>
-
     <div class="content-grid">
 
       <!-- Letzte Übergaben -->
@@ -118,13 +110,6 @@ const greeting = computed(() => {
 
 const firstName = computed(() => authStore.userName?.split(' ')[0] || authStore.userName)
 
-const stats = computed(() => [
-  { value: handovers.value.filter(h => h.status === 'archived').length, label: 'Abgeschlossen', trend: '↑ heute', trendClass: 'up' },
-  { value: handovers.value.filter(h => h.status === 'pending').length,  label: 'Ausstehend',    trend: handovers.value.filter(h=>h.status==='pending').length > 0 ? '⚠ offen' : '', trendClass: 'warn' },
-  { value: handovers.value.length, label: 'Total heute' },
-  { value: new Set(handovers.value.map(h => h.carrier?.company_name).filter(Boolean)).size, label: 'Spediteure' },
-])
-
 function statusLabel(s) {
   return { pending: 'Ausstehend', printed: 'Gedruckt', signed: 'Unterschrieben', archived: 'Archiviert' }[s] || s
 }
@@ -161,19 +146,6 @@ onMounted(async () => {
   display: inline-flex; align-items: center;
 }
 .btn-primary:hover { opacity: 0.9; }
-
-/* ── Stats ── */
-.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-.stat-card {
-  background: white; border-radius: 14px; padding: 20px 18px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
-  animation: fadeUp 0.4s ease both;
-}
-.stat-val   { font-family: 'Instrument Serif', serif; font-size: 32px; font-weight: 400; color: #1c1c1e; letter-spacing: -1px; line-height: 1; margin-bottom: 4px; }
-.stat-label { font-size: 12px; color: #98989f; }
-.stat-trend { font-size: 11px; font-weight: 500; margin-top: 6px; }
-.stat-trend.up   { color: #28a745; }
-.stat-trend.warn { color: #c07800; }
 
 /* ── Grid ── */
 .content-grid { display: grid; grid-template-columns: 1fr 280px; gap: 14px; }

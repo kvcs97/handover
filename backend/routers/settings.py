@@ -113,20 +113,29 @@ def get_all_settings(db: Session = Depends(get_db), user=Depends(require_admin))
 
 @router.get("/printers")
 def list_printers(user=Depends(get_current_user)):
-    """Alle auf Windows installierten Drucker zurückgeben"""
+    """Alle auf Windows installierten Drucker zurückgeben (identisch zu Windows-Einstellungen)"""
+    import subprocess, json
     try:
-        import win32print
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-Printer | Select-Object Name, PortName, Type | ConvertTo-Json -Compress"],
+            capture_output=True, text=True, timeout=10
+        )
+        raw = json.loads(result.stdout or "[]")
+        if isinstance(raw, dict):
+            raw = [raw]
         printers = []
-        flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
-        for p in win32print.EnumPrinters(flags, None, 4):
-            port = p.get("pPortName", "")
+        for p in raw:
+            port = p.get("PortName") or ""
+            # Type 0 = lokal, Type 1 = Netzwerk-Verbindung
+            p_type = p.get("Type", 0)
             printers.append({
-                "name": p["pPrinterName"],
+                "name": p.get("Name", ""),
                 "port": port,
-                "type": "local" if any(k in port.upper() for k in ("USB", "DOT4", "WSD")) else "network",
+                "type": "local" if p_type == 0 else "network",
             })
         return printers
-    except Exception as e:
+    except Exception:
         return []
 
 
