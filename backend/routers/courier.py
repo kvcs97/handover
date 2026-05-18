@@ -707,6 +707,78 @@ def print_all_for_carrier(
     )
 
 
+class ManualShipmentRequest(BaseModel):
+    carrier_id:   int
+    ls_numbers:   list[str]        # mind. 1 LS-Nummer
+    note:         Optional[str] = None
+    process_date: Optional[str] = None   # YYYY-MM-DD; default heute
+
+
+@router.post("/shipments/manual", response_model=ShipmentOut)
+def create_manual_shipment(
+    data: ManualShipmentRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Manuelle Sendungs-Erfassung (Post, Direktlieferung) ohne E-Mail."""
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.pagesizes import A4
+
+    carrier = db.query(CourierCarrier).filter(CourierCarrier.id == data.carrier_id).first()
+    if not carrier:
+        raise HTTPException(status_code=404, detail="Carrier nicht gefunden")
+
+    ls_numbers = [ls.strip() for ls in data.ls_numbers if ls.strip()]
+    if not ls_numbers:
+        raise HTTPException(status_code=400, detail="Mindestens eine LS-Nummer erforderlich")
+
+    process_date = _parse_process_date(data.process_date)
+    process_date_str = process_date.isoformat()
+
+    shipment = CourierShipment(
+        carrier_id=data.carrier_id,
+        process_date=process_date_str,
+        email_id=None,
+        email_subject=f"[Manuell] {', '.join(ls_numbers)}",
+        delivery_note_numbers=json.dumps(ls_numbers),
+        status="open",
+    )
+    db.add(shipment)
+    db.flush()
+
+    # Einfaches Label-PDF generieren
+    label_dir = os.path.join(
+        _COURIER_ATTACHMENT_ROOT, process_date_str, f"manual_{shipment.id}"
+    )
+    os.makedirs(label_dir, exist_ok=True)
+    label_path = os.path.join(label_dir, "label.pdf")
+
+    c = rl_canvas.Canvas(label_path, pagesize=A4)
+    w, h = A4
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(50, h - 80, "Manuelle Sendung")
+    c.setFont("Helvetica", 13)
+    c.drawString(50, h - 110, f"Carrier: {carrier.name}")
+    c.drawString(50, h - 132, f"Datum: {process_date.strftime('%d.%m.%Y')}")
+    c.drawString(50, h - 154, f"LS-Nummer(n): {', '.join(ls_numbers)}")
+    if data.note:
+        c.drawString(50, h - 176, f"Notiz: {data.note}")
+    c.save()
+
+    db.add(CourierDocument(
+        shipment_id=shipment.id,
+        filename="label.pdf",
+        delivery_note_number=ls_numbers[0] if len(ls_numbers) == 1 else None,
+        document_type="lieferschein",
+        local_path=label_path,
+        should_print=True,
+        was_printed=False,
+    ))
+    db.commit()
+    db.refresh(shipment)
+    return _shipment_to_out(shipment)
+
+
 @router.get("/documents/{doc_id}/file")
 def get_document_file(
     doc_id: int,

@@ -70,15 +70,17 @@ def create_handover(data: HandoverCreate, db: Session = Depends(get_db), user=De
     db.refresh(handover)
 
     # Drucken — Fehler blockiert Workflow nicht
+    print_error = None
     try:
         pdf_path = generate_pdf(handover, db)
         print_document(pdf_path, db=db)
         handover.status = "printed"
         db.commit()
     except Exception as e:
+        print_error = str(e)
         print(f"[WARN] Druckfehler (nicht kritisch): {e}")
 
-    return {"id": handover.id, "status": handover.status, "referenz": handover.referenz}
+    return {"id": handover.id, "status": handover.status, "referenz": handover.referenz, "print_error": print_error}
 
 
 @router.post("/sign")
@@ -142,6 +144,31 @@ def list_handovers(db: Session = Depends(get_db), user=Depends(get_current_user)
             "pdf_path":    h.pdf_path,
             "created_at":  h.created_at.isoformat() if h.created_at else None,
             "signed_at":   h.signed_at.isoformat() if h.signed_at else None,
+            "carrier":     {"id": h.carrier.id, "company_name": h.carrier.company_name} if h.carrier else None,
+        }
+        for h in handovers
+    ]
+
+
+@router.get("/open")
+def list_open_handovers(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Übergaben mit Status pending oder printed (noch nicht unterschrieben)."""
+    handovers = (
+        db.query(Handover)
+        .options(joinedload(Handover.carrier))
+        .filter(Handover.status.in_(["pending", "printed"]))
+        .order_by(Handover.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id":          h.id,
+            "referenz":    h.referenz,
+            "driver_name": h.driver_name,
+            "truck_plate": h.truck_plate,
+            "status":      h.status,
+            "created_at":  h.created_at.isoformat() if h.created_at else None,
             "carrier":     {"id": h.carrier.id, "company_name": h.carrier.company_name} if h.carrier else None,
         }
         for h in handovers

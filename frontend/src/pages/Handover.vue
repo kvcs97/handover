@@ -146,8 +146,15 @@
           <span v-if="!printDone">⏳ Druckauftrag läuft…</span>
           <span v-else>✅ Dokumente gedruckt</span>
         </div>
+        <div class="print-warn" v-if="printError">
+          <span>⚠</span>
+          <div>
+            <strong>Druckfehler — Drucker prüfen</strong>
+            <p>{{ printError }}</p>
+          </div>
+        </div>
         <div class="step-actions" v-if="printDone">
-          <button class="btn-next" @click="currentStep++">Weiter zur Unterschrift ✍️</button>
+          <button class="btn-next" @click="currentStep++">Weiter zur Unterschrift ✍️ <kbd>↵</kbd></button>
         </div>
       </div>
     </div>
@@ -185,7 +192,7 @@
         <div class="step-actions">
           <button class="btn-back" @click="currentStep--" :disabled="submitting">← Zurück</button>
           <button class="btn-next" @click="submitSignature" :disabled="!hasSig || submitting">
-            <span v-if="!submitting">Bestätigen & Archivieren 📁</span>
+            <span v-if="!submitting">Bestätigen & Archivieren 📁 <kbd>⌘↵</kbd></span>
             <span v-else class="spinner-sm white"></span>
           </button>
         </div>
@@ -227,7 +234,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import api from '../api'
 import { useSettingsStore } from '../stores/settings'
 import { useAuthStore } from '../stores/auth'
@@ -254,6 +261,7 @@ const creating       = ref(false)
 const printDone      = ref(false)
 const submitting     = ref(false)
 const archivedAt     = ref('')
+const printError     = ref(null)
 
 // Outlook
 const isOutlookSource    = ref(false)
@@ -359,6 +367,7 @@ function formatDate(d) {
 // ── Step Carrier: Handover erstellen ──────────
 async function createHandover() {
   creating.value = true
+  printError.value = null
   try {
     if (!selectedCarrier.value) await createCarrier()
     const res = await api.post('/handover/create', {
@@ -369,9 +378,30 @@ async function createHandover() {
     if (res.data.referenz && res.data.referenz !== referenz.value) {
       referenz.value = res.data.referenz
     }
+    if (res.data.print_error) printError.value = res.data.print_error
     currentStep.value = printStep.value
     setTimeout(() => { printDone.value = true }, 2000)
   } finally { creating.value = false }
+}
+
+function handleKey(e) {
+  if (previewUrl.value) return
+  const tag = e.target?.tagName
+  const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'CANVAS'
+  if (e.key === 'Escape' && !inInput && currentStep.value > 0 && currentStep.value !== doneStep.value && !submitting.value) {
+    currentStep.value--
+    return
+  }
+  if (e.key === 'Enter' && !inInput && currentStep.value === printStep.value && printDone.value) {
+    currentStep.value++
+    return
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (currentStep.value === signStep.value && hasSig.value && !submitting.value) {
+      e.preventDefault()
+      submitSignature()
+    }
+  }
 }
 
 // ── Signature Canvas ───────────────────────────
@@ -466,12 +496,14 @@ function reset() {
   currentStep.value = 0; referenz.value = ''; carrierSearch.value = ''
   selectedCarrier.value = null; truckPlate.value = ''; driverName.value = ''
   handoverId.value = null; printDone.value = false; hasSig.value = false
+  printError.value = null
   attachments.value = []; signIndices.value = []; signedPdfs.value = []
   isOutlookSource.value = false; previewUrl.value = null
   nextTick(() => refInput.value?.focus())
 }
 
-onMounted(() => refInput.value?.focus())
+onMounted(() => { refInput.value?.focus(); window.addEventListener('keydown', handleKey) })
+onUnmounted(() => window.removeEventListener('keydown', handleKey))
 </script>
 
 <style scoped>
@@ -549,9 +581,14 @@ onMounted(() => refInput.value?.focus())
 .dd-hint { font-size: 11px; color: #98989f; }
 .new-item { color: #c0546a; font-weight: 500; }
 
-.print-status { padding: 14px 24px; border-radius: 12px; font-size: 15px; font-weight: 500; margin-bottom: 28px; }
+.print-status { padding: 14px 24px; border-radius: 12px; font-size: 15px; font-weight: 500; margin-bottom: 16px; }
 .print-status.printing { background: rgba(255,149,0,0.08); color: #c07800; }
 .print-status.done     { background: rgba(40,200,64,0.08); color: #1a7a2e; }
+.print-warn { display: flex; gap: 10px; padding: 12px 16px; background: rgba(255,149,0,0.08); border: 1px solid rgba(255,149,0,0.25); border-radius: 11px; color: #c07800; font-size: 13px; margin-bottom: 20px; width: 100%; align-items: flex-start; text-align: left; }
+.print-warn > span { font-size: 18px; flex-shrink: 0; }
+.print-warn strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.print-warn p { font-size: 12px; margin: 0; word-break: break-word; color: #8a5500; }
+kbd { font-family: 'DM Sans', sans-serif; font-size: 10px; background: rgba(255,255,255,0.22); border-radius: 4px; padding: 1px 5px; margin-left: 5px; letter-spacing: 0; }
 
 .submit-status { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(192,84,106,0.06); border: 1px solid rgba(192,84,106,0.15); border-radius: 11px; color: #8a2a3e; font-size: 13px; margin-bottom: 16px; width: 100%; }
 .submit-status .spinner-sm { border: 2px solid rgba(192,84,106,0.3); border-top-color: #c0546a; }

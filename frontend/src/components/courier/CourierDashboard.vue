@@ -23,6 +23,9 @@
           <span v-else>🔄</span>
           {{ isLoading ? 'Wird abgerufen…' : 'E-Mails abrufen' }}
         </button>
+        <button class="btn-manual" @click="openManualModal" title="Sendung manuell erfassen">
+          + Manuell
+        </button>
       </div>
 
       <div class="toolbar-right">
@@ -155,6 +158,45 @@
         <span>{{ toast.text }}</span>
       </div>
     </transition>
+
+    <!-- Manuelle Sendungs-Erfassung Modal -->
+    <transition name="modal-fade">
+      <div v-if="manualModalOpen" class="modal-backdrop" @click.self="closeManualModal">
+        <div class="manual-modal">
+          <div class="manual-modal-header">
+            <span>Sendung manuell erfassen</span>
+            <button class="modal-close" @click="closeManualModal">✕</button>
+          </div>
+          <div class="manual-modal-body">
+            <div class="mfield">
+              <label>Carrier *</label>
+              <select v-model="manualForm.carrier_id" class="mselect">
+                <option value="" disabled>Carrier auswählen…</option>
+                <option v-for="c in courier.carriers" :key="c.id" :value="c.id">{{ c.display_name }}</option>
+              </select>
+            </div>
+            <div class="mfield">
+              <label>LS-Nummern * <span class="mhint">(eine pro Zeile)</span></label>
+              <textarea v-model="manualForm.ls_text" class="minput mtextarea" rows="4"
+                placeholder="80123456789&#10;17098765432" />
+            </div>
+            <div class="mfield">
+              <label>Notiz <span class="mhint">(optional)</span></label>
+              <input v-model="manualForm.note" type="text" class="minput"
+                placeholder="z.B. Post-Einlieferung Schalterhalle" />
+            </div>
+            <div class="manual-error" v-if="manualError">⚠ {{ manualError }}</div>
+          </div>
+          <div class="manual-modal-footer">
+            <button class="btn-ghost" @click="closeManualModal">Abbrechen</button>
+            <button class="btn-primary" :disabled="manualSubmitting || !manualForm.carrier_id" @click="submitManual">
+              <span v-if="manualSubmitting" class="btn-spinner" />
+              <span v-else>Sendung anlegen</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -259,6 +301,41 @@ function onSigned(result) {
   } else {
     showToast('Archivierung fehlgeschlagen', 'warning')
   }
+}
+
+// ── Manuelle Sendung ────────────────────────────
+const manualModalOpen  = ref(false)
+const manualSubmitting = ref(false)
+const manualError      = ref('')
+const manualForm       = ref({ carrier_id: '', ls_text: '', note: '' })
+
+function openManualModal() {
+  manualForm.value = { carrier_id: '', ls_text: '', note: '' }
+  manualError.value = ''
+  manualModalOpen.value = true
+}
+function closeManualModal() { manualModalOpen.value = false }
+
+async function submitManual() {
+  manualError.value = ''
+  const ls_numbers = manualForm.value.ls_text
+    .split(/[\n,;]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+  if (!ls_numbers.length) { manualError.value = 'Mindestens eine LS-Nummer erforderlich'; return }
+  manualSubmitting.value = true
+  try {
+    await courier.createManualShipment({
+      carrier_id:   manualForm.value.carrier_id,
+      ls_numbers,
+      note:         manualForm.value.note || null,
+      process_date: courier.selectedDate,
+    })
+    closeManualModal()
+    showToast('Sendung angelegt ✓', 'success')
+  } catch (e) {
+    manualError.value = e?.response?.data?.detail || e?.message || 'Fehler beim Anlegen'
+  } finally { manualSubmitting.value = false }
 }
 
 onMounted(async () => {
@@ -571,4 +648,58 @@ onMounted(async () => {
   opacity: 0;
   transform: translate(-50%, 12px);
 }
+
+/* ── Manuell-Button ─────────────────────────── */
+.btn-manual {
+  display: inline-flex; align-items: center;
+  padding: 11px 18px; min-height: 44px;
+  background: var(--color-surface); border: 1.5px solid var(--accent-primary);
+  color: var(--accent-primary); border-radius: 10px;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 150ms ease;
+}
+.btn-manual:hover { background: var(--accent-bg); }
+
+/* ── Modal ──────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px); z-index: 500;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.manual-modal {
+  background: var(--color-surface); border-radius: 16px;
+  width: 100%; max-width: 460px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.manual-modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 18px 22px; border-bottom: 1px solid var(--color-border);
+  font-size: 15px; font-weight: 600; color: var(--color-text);
+}
+.modal-close {
+  background: transparent; border: none; font-size: 14px;
+  color: var(--color-text-muted); cursor: pointer; padding: 4px 8px; border-radius: 6px;
+}
+.modal-close:hover { background: var(--accent-bg); }
+.manual-modal-body { padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+.manual-modal-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 14px 22px; border-top: 1px solid var(--color-border);
+}
+.manual-modal-footer .btn-ghost { margin-top: 0; }
+.mfield { display: flex; flex-direction: column; gap: 5px; }
+.mfield label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+.mhint { font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 11px; }
+.minput, .mselect {
+  padding: 11px 14px; min-height: 44px;
+  border: 1.5px solid var(--color-border); border-radius: 9px;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--color-text);
+  background: var(--color-surface); outline: none; transition: border-color 150ms;
+}
+.minput:focus, .mselect:focus { border-color: var(--accent-primary); }
+.mtextarea { min-height: 100px; resize: vertical; line-height: 1.5; }
+.manual-error { font-size: 13px; color: var(--color-danger); background: rgba(239,68,68,0.07); border-radius: 8px; padding: 8px 12px; }
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 180ms ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 </style>

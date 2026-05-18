@@ -306,6 +306,11 @@ export const useCourierStore = defineStore('courier', () => {
   function setCarrierFilter(id) { carrierFilter.value = id }
   function setSearchQuery(q)    { searchQuery.value = q ?? '' }
 
+  async function createManualShipment(payload) {
+    await api.post('/api/courier/shipments/manual', payload)
+    await loadShipmentsForDate(selectedDate.value)
+  }
+
   return {
     // Mode-Switch
     mode, setMode, toggleMode, applyDefaultModeFromSettings,
@@ -323,6 +328,6 @@ export const useCourierStore = defineStore('courier', () => {
     loadCarriers, loadShipmentsForDate, processEmailsForDate,
     toggleDocumentPrint, setDate, setCarrierFilter, setSearchQuery,
     printShipment, printAllForCarrier, fetchDocumentBlobUrl,
-    signCarrier,
+    signCarrier, createManualShipment,
   }
 })
