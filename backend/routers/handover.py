@@ -72,7 +72,7 @@ def create_handover(data: HandoverCreate, db: Session = Depends(get_db), user=De
     # Drucken — Fehler blockiert Workflow nicht
     try:
         pdf_path = generate_pdf(handover, db)
-        print_document(pdf_path)
+        print_document(pdf_path, db=db)
         handover.status = "printed"
         db.commit()
     except Exception as e:
