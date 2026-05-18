@@ -169,6 +169,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     _migrate_add_tracking_columns()
     _seed_courier_carriers()
+    _migrate_tracking_urls()
 
 
 def _migrate_add_tracking_columns():
@@ -185,6 +186,26 @@ def _migrate_add_tracking_columns():
                 conn.commit()
             except Exception:
                 pass  # Spalte existiert bereits
+
+
+_DEFAULT_TRACKING_URLS = {
+    "fedex_tnt": "https://www.fedex.com/fedextrack/?tracknumbers={nr}",
+    "dhl":       "https://nolp.dhl.de/nextt-online-public/track.do?idc={nr}",
+    "ups":       "https://www.ups.com/track?tracknum={nr}",
+}
+
+
+def _migrate_tracking_urls():
+    """Trägt fehlende Tracking-URLs in bestehende Default-Carrier ein (idempotent)."""
+    db = SessionLocal()
+    try:
+        for name, url in _DEFAULT_TRACKING_URLS.items():
+            carrier = db.query(CourierCarrier).filter_by(name=name).first()
+            if carrier and not carrier.tracking_url_template:
+                carrier.tracking_url_template = url
+        db.commit()
+    finally:
+        db.close()
 
 
 def _seed_courier_carriers():
