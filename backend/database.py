@@ -92,6 +92,7 @@ class CourierCarrier(Base):
     display_name        = Column(String, nullable=False)                     # UI-Anzeigename
     detection_keywords  = Column(Text, nullable=False)                        # JSON-Array: ["fedex","tnt",...]
     print_set_rules     = Column(Text, nullable=False)                        # JSON: {"default":[...], "overrides":{...}}
+    tracking_url_template = Column(String, nullable=True)                    # z.B. "https://track.dhl.com/?id={nr}"
     is_active           = Column(Boolean, default=True)
     created_at          = Column(DateTime, default=datetime.utcnow)
     shipments           = relationship("CourierShipment", back_populates="carrier")
@@ -103,9 +104,10 @@ class CourierShipment(Base):
     id                      = Column(Integer, primary_key=True)
     delivery_note_numbers   = Column(Text, nullable=False)                    # JSON-Array von LS-Nummern
     carrier_id              = Column(Integer, ForeignKey("courier_carriers.id"), nullable=True)
-    email_id                = Column(String, nullable=False)                  # IMAP Message-ID
+    email_id                = Column(String, nullable=True)                   # IMAP Message-ID (null bei manuellen Sendungen)
     email_subject           = Column(String, nullable=True)
-    email_date              = Column(DateTime, nullable=False)
+    email_date              = Column(DateTime, nullable=True)
+    tracking_number         = Column(String, nullable=True)                   # aus Label-PDF extrahiert
     status                  = Column(String, default="open")                  # open | printed | signed | archived
     process_date            = Column(String, nullable=False)                  # Verarbeitungstag (YYYY-MM-DD)
     created_at              = Column(DateTime, default=datetime.utcnow)
@@ -165,7 +167,24 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    _migrate_add_tracking_columns()
     _seed_courier_carriers()
+
+
+def _migrate_add_tracking_columns():
+    """Fügt neue Tracking-Spalten zu bestehenden Tabellen hinzu (idempotent)."""
+    migrations = [
+        "ALTER TABLE courier_carriers ADD COLUMN tracking_url_template TEXT",
+        "ALTER TABLE courier_shipments ADD COLUMN tracking_number TEXT",
+        "ALTER TABLE courier_shipments ADD COLUMN email_date DATETIME",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(__import__("sqlalchemy").text(sql))
+                conn.commit()
+            except Exception:
+                pass  # Spalte existiert bereits
 
 
 def _seed_courier_carriers():
@@ -180,11 +199,11 @@ def _seed_courier_carriers():
                 "name": "fedex_tnt",
                 "display_name": "FedEx / TNT",
                 "detection_keywords": ["fedex", "tnt", "federal express"],
-                # TNT-Override: zusätzlich EDEC drucken, wenn Keyword "tnt" matcht
                 "print_set_rules": {
                     "default": ["label", "rechnung"],
                     "overrides": {"tnt": ["label", "rechnung", "edec"]},
                 },
+                "tracking_url_template": "https://www.fedex.com/fedextrack/?tracknumbers={nr}",
             },
             {
                 "name": "dhl",
@@ -194,6 +213,7 @@ def _seed_courier_carriers():
                     "default": ["label", "rechnung", "lieferschein", "pkl", "edec", "to"],
                     "overrides": {},
                 },
+                "tracking_url_template": "https://nolp.dhl.de/nextt-online-public/track.do?idc={nr}",
             },
             {
                 "name": "ups",
@@ -203,6 +223,7 @@ def _seed_courier_carriers():
                     "default": ["label", "rechnung", "lieferschein", "pkl", "edec", "to"],
                     "overrides": {},
                 },
+                "tracking_url_template": "https://www.ups.com/track?tracknum={nr}",
             },
         ]
 
@@ -212,6 +233,7 @@ def _seed_courier_carriers():
                 display_name=c["display_name"],
                 detection_keywords=json.dumps(c["detection_keywords"]),
                 print_set_rules=json.dumps(c["print_set_rules"]),
+                tracking_url_template=c.get("tracking_url_template"),
                 is_active=True,
             ))
         db.commit()
