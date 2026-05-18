@@ -63,6 +63,7 @@ def run_setup(data: SetupData, db: Session = Depends(get_db)):
     set_setting(db, "data_source_type", data.data_source_type)
     set_setting(db, "data_source_path", data.data_source_path or "")
     set_setting(db, "data_source_url",  data.data_source_url or "")
+    set_setting(db, "data_source_key",  data.data_source_key or "")
 
     # Admin-Account anlegen
     admin = User(
@@ -83,7 +84,7 @@ def run_setup(data: SetupData, db: Session = Depends(get_db)):
 SAFE_KEYS = [
     "company_name", "company_address", "company_logo_b64",
     "printer_name",
-    "data_source_type", "data_source_path", "data_source_url",
+    "data_source_type", "data_source_path", "data_source_url", "data_source_key",
     "outlook_type", "outlook_email", "outlook_tenant_id",
     "outlook_client_id", "outlook_server", "outlook_imap_server",
     "archive_path",
@@ -137,6 +138,44 @@ def list_printers(user=Depends(get_current_user)):
         return printers
     except Exception:
         return []
+
+
+@router.post("/test-print")
+def test_print(data: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Druckt eine Testseite auf dem angegebenen Drucker."""
+    from fastapi import HTTPException
+    import tempfile, os
+    printer_name = (data.get("printer_name") or "").strip()
+    if not printer_name:
+        raise HTTPException(status_code=400, detail="Kein Drucker angegeben")
+
+    # Einfache Test-PDF mit ReportLab erstellen
+    try:
+        from reportlab.pdfgen import canvas as rl_canvas
+        from reportlab.lib.pagesizes import A4
+        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        tmp.close()
+        c = rl_canvas.Canvas(tmp.name, pagesize=A4)
+        c.setFont("Helvetica-Bold", 24)
+        c.drawCentredString(A4[0] / 2, A4[1] / 2 + 20, "HandOver – Testdruck")
+        c.setFont("Helvetica", 14)
+        c.drawCentredString(A4[0] / 2, A4[1] / 2 - 20, f"Drucker: {printer_name}")
+        c.save()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Test-PDF konnte nicht erstellt werden: {e}")
+
+    try:
+        from services.printer import print_document
+        print_document(tmp.name, printer_name=printer_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except Exception:
+            pass
+
+    return {"status": "ok"}
 
 
 @router.put("/{key}")

@@ -30,16 +30,21 @@ def print_document(pdf_path: str, db=None, printer_name: str = None):
         if os.path.exists(sumatra):
             subprocess.run([sumatra, "-print-to", printer_name, pdf_path], check=True)
         else:
-            # Methode 2: Standard Windows PDF-Druck via Acrobat/Edge
-            cmd = [
-                "powershell", "-Command",
-                f'$pdf = "{pdf_path}"; '
-                f'$printer = "{printer_name}"; '
-                f'$shell = New-Object -ComObject Shell.Application; '
-                f'$item = $shell.Namespace(0).ParseName($pdf); '
-                f'$item.InvokeVerb("Print")'
-            ]
-            subprocess.run(cmd, check=True, timeout=30)
+            # Methode 2: Start-Process -Verb PrintTo — silent zur Queue, kein Dialog
+            # Single-quoted PS-Strings: einfache Anführungszeichen im Wert verdoppeln
+            safe_pdf     = pdf_path.replace("'", "''")
+            safe_printer = printer_name.replace("'", "''")
+            ps_cmd = (
+                f"$pdf = '{safe_pdf}'; "
+                f"$printer = '{safe_printer}'; "
+                f"Start-Process -FilePath $pdf -Verb PrintTo -ArgumentList $printer -Wait -ErrorAction Stop"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode != 0:
+                raise RuntimeError(result.stderr.strip() or "Druckfehler (unbekannt)")
 
     elif system == "Darwin":
         if printer_name:
