@@ -11,6 +11,27 @@
       </button>
     </div>
 
+    <!-- Offene Übergaben (nicht unterschrieben) -->
+    <div class="card card-warn" v-if="openHandovers.length && !authStore.isViewer">
+      <div class="card-header">
+        <h2 class="card-title">Offene Übergaben</h2>
+        <span class="card-pill warn">{{ openHandovers.length }} offen</span>
+      </div>
+      <table class="ho-table">
+        <thead>
+          <tr><th>Referenz</th><th>Spediteur</th><th>Status</th><th>Erstellt</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="h in openHandovers" :key="h.id">
+            <td class="ref-cell">{{ h.referenz }}</td>
+            <td>{{ h.carrier?.company_name || '—' }}</td>
+            <td><span class="chip" :class="h.status">{{ statusLabel(h.status) }}</span></td>
+            <td class="time-cell">{{ formatDate(h.created_at) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="content-grid">
 
       <!-- Letzte Übergaben -->
@@ -94,8 +115,9 @@ import api from '../api'
 defineEmits(['navigate'])
 
 const authStore = useAuthStore()
-const handovers = ref([])
-const loading   = ref(true)
+const handovers     = ref([])
+const openHandovers = ref([])
+const loading       = ref(true)
 
 const today = computed(() => new Date().toLocaleDateString('de-CH', {
   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
@@ -116,10 +138,21 @@ function statusLabel(s) {
 function formatTime(dt) {
   return dt ? new Date(dt).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) : '—'
 }
+function formatDate(dt) {
+  if (!dt) return '—'
+  return new Date(dt).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    + ' ' + new Date(dt).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })
+}
 
 onMounted(async () => {
-  try { const res = await api.get('/handover/list'); handovers.value = res.data }
-  catch (e) { console.error(e) }
+  try {
+    const [list, open] = await Promise.all([
+      api.get('/handover/list'),
+      api.get('/handover/open'),
+    ])
+    handovers.value     = list.data
+    openHandovers.value = open.data
+  } catch (e) { console.error(e) }
   finally { loading.value = false }
 })
 </script>
@@ -181,6 +214,8 @@ onMounted(async () => {
 .empty-state span { font-size: 32px; }
 
 /* ── Actions ── */
+.card-warn { border: 1.5px solid rgba(255,149,0,0.2); margin-bottom: 14px; animation-delay: 0.05s; }
+.card-pill.warn { color: #c07800; background: rgba(255,149,0,0.1); }
 .card-actions { animation-delay: 0.2s; }
 .actions-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 
