@@ -28,6 +28,14 @@
 
     <div class="status-block">
       <StatusBadge :status="shipment.status" />
+      <a
+        v-if="shipment.tracking_url"
+        :href="shipment.tracking_url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn-track"
+        title="Sendung tracken"
+      >🔗</a>
       <button
         type="button"
         class="btn-print"
@@ -140,6 +148,24 @@ const printTooltip = computed(() => {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.btn-track {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: all 150ms ease;
+  flex-shrink: 0;
+}
+.btn-track:hover {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: white;
 }
 
 .btn-print {

@@ -30,6 +30,10 @@
             <span class="detail-label">Keywords:</span>
             <span class="detail-val">{{ (c.detection_keywords || []).join(', ') || '—' }}</span>
           </div>
+          <div v-if="c.tracking_url_template" class="carrier-detail">
+            <span class="detail-label">Tracking:</span>
+            <span class="detail-val tracking-url">{{ c.tracking_url_template }}</span>
+          </div>
           <div class="carrier-detail">
             <span class="detail-label">Druckset:</span>
             <span class="detail-val">
@@ -94,6 +98,16 @@
                     {{ TYPE_LABELS[t] }}
                   </button>
                 </div>
+              </div>
+
+              <div class="field">
+                <label>Tracking-URL-Vorlage</label>
+                <input
+                  v-model="form.tracking_url_template"
+                  class="input"
+                  placeholder="https://www.carrier.com/track?id={nr}"
+                />
+                <p class="hint"><code>{nr}</code> wird durch die extrahierte Tracking-Nummer ersetzt.</p>
               </div>
 
               <div class="field">
@@ -193,21 +207,23 @@ const modalError = ref(null)
 const saving     = ref(false)
 
 const form = reactive({
-  name:           '',
-  display_name:   '',
-  keywordsRaw:    '',
-  defaultDocs:    [],
-  overrides:      [],   // [{ key, docs: [] }]
-  is_active:      true,
+  name:                   '',
+  display_name:           '',
+  keywordsRaw:            '',
+  defaultDocs:            [],
+  overrides:              [],   // [{ key, docs: [] }]
+  is_active:              true,
+  tracking_url_template:  '',
 })
 
 function resetForm() {
-  form.name         = ''
-  form.display_name = ''
-  form.keywordsRaw  = ''
-  form.defaultDocs  = []
-  form.overrides    = []
-  form.is_active    = true
+  form.name                  = ''
+  form.display_name          = ''
+  form.keywordsRaw           = ''
+  form.defaultDocs           = []
+  form.overrides             = []
+  form.is_active             = true
+  form.tracking_url_template = ''
 }
 
 function openCreate() {
@@ -224,9 +240,10 @@ function openEdit(c) {
   form.display_name = c.display_name
   form.keywordsRaw  = (c.detection_keywords || []).join(', ')
   form.defaultDocs  = [...(c.print_set_rules?.default || [])]
-  form.overrides    = Object.entries(c.print_set_rules?.overrides || {})
+  form.overrides             = Object.entries(c.print_set_rules?.overrides || {})
     .map(([k, docs]) => ({ key: k, docs: [...docs] }))
-  form.is_active    = c.is_active
+  form.is_active             = c.is_active
+  form.tracking_url_template = c.tracking_url_template || ''
   modalOpen.value   = true
 }
 
@@ -287,21 +304,23 @@ async function onSave() {
   }
 
   const payload = {
-    name:               form.name.trim(),
-    display_name:       form.display_name.trim(),
-    detection_keywords: kws,
-    print_set_rules:    { default: form.defaultDocs, overrides },
-    is_active:          form.is_active,
+    name:                   form.name.trim(),
+    display_name:           form.display_name.trim(),
+    detection_keywords:     kws,
+    print_set_rules:        { default: form.defaultDocs, overrides },
+    is_active:              form.is_active,
+    tracking_url_template:  form.tracking_url_template.trim() || null,
   }
 
   saving.value = true
   try {
     if (editing.value?.id) {
       await api.put(`/api/courier/carriers/${editing.value.id}`, {
-        display_name:       payload.display_name,
-        detection_keywords: payload.detection_keywords,
-        print_set_rules:    payload.print_set_rules,
-        is_active:          payload.is_active,
+        display_name:           payload.display_name,
+        detection_keywords:     payload.detection_keywords,
+        print_set_rules:        payload.print_set_rules,
+        is_active:              payload.is_active,
+        tracking_url_template:  payload.tracking_url_template,
       })
     } else {
       await api.post('/api/courier/carriers', payload)
@@ -424,6 +443,12 @@ async function onDeactivate(c) {
   color: var(--color-text-muted);
 }
 .detail-val { color: var(--color-text); }
+.tracking-url {
+  font-family: 'DM Mono', 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--accent-primary);
+  word-break: break-all;
+}
 .carrier-detail em {
   font-style: normal;
   font-family: 'DM Mono', 'JetBrains Mono', monospace;

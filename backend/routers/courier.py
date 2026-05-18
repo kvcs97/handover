@@ -120,6 +120,7 @@ def _carrier_to_out(c: CourierCarrier) -> CarrierOut:
         display_name=c.display_name,
         detection_keywords=keywords,
         print_set_rules=rules,
+        tracking_url_template=c.tracking_url_template or None,
         is_active=c.is_active,
         created_at=c.created_at,
     )
@@ -130,6 +131,11 @@ def _shipment_to_out(s: CourierShipment) -> ShipmentOut:
         ls_numbers = json.loads(s.delivery_note_numbers or "[]")
     except (json.JSONDecodeError, TypeError):
         ls_numbers = []
+
+    tracking_url = None
+    if s.tracking_number and s.carrier and s.carrier.tracking_url_template:
+        tracking_url = s.carrier.tracking_url_template.replace("{nr}", s.tracking_number)
+
     return ShipmentOut(
         id=s.id,
         delivery_note_numbers=ls_numbers,
@@ -141,6 +147,7 @@ def _shipment_to_out(s: CourierShipment) -> ShipmentOut:
         status=s.status,
         created_at=s.created_at,
         documents=[DocumentOut.model_validate(d) for d in s.documents],
+        tracking_url=tracking_url,
     )
 
 
@@ -175,6 +182,7 @@ def create_carrier(
         display_name=payload.display_name,
         detection_keywords=json.dumps([k.strip().lower() for k in payload.detection_keywords]),
         print_set_rules=json.dumps(payload.print_set_rules.model_dump()),
+        tracking_url_template=payload.tracking_url_template or None,
         is_active=payload.is_active,
     )
     db.add(carrier)
@@ -209,6 +217,8 @@ def update_carrier(
         carrier.print_set_rules = json.dumps(payload.print_set_rules.model_dump())
     if payload.is_active is not None:
         carrier.is_active = payload.is_active
+    if payload.tracking_url_template is not None:
+        carrier.tracking_url_template = payload.tracking_url_template or None
 
     db.commit()
     db.refresh(carrier)
@@ -491,6 +501,17 @@ def _persist_shipment(
             should_print=att.should_print,
             was_printed=False,
         ))
+
+        # Tracking-Nummer aus Label-PDF extrahieren
+        if att.document_type == "label" and local_path and not shipment.tracking_number:
+            try:
+                from services.pdf_tracking import extract_tracking_number
+                tn = extract_tracking_number(local_path)
+                if tn:
+                    shipment.tracking_number = tn
+            except Exception:
+                pass
+
     return True
 
 
@@ -738,8 +759,9 @@ def create_manual_shipment(
     shipment = CourierShipment(
         carrier_id=data.carrier_id,
         process_date=process_date_str,
-        email_id=None,
+        email_id="",
         email_subject=f"[Manuell] {', '.join(ls_numbers)}",
+        email_date=datetime.utcnow(),
         delivery_note_numbers=json.dumps(ls_numbers),
         status="open",
     )

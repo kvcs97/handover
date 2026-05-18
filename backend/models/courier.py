@@ -33,6 +33,7 @@ class CarrierBase(BaseModel):
     display_name: str
     detection_keywords: list[str]
     print_set_rules: PrintSetRules
+    tracking_url_template: Optional[str] = None
     is_active: bool = True
 
 
@@ -44,6 +45,7 @@ class CarrierUpdate(BaseModel):
     display_name: Optional[str] = None
     detection_keywords: Optional[list[str]] = None
     print_set_rules: Optional[PrintSetRules] = None
+    tracking_url_template: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -79,9 +81,9 @@ class DocumentPrintToggle(BaseModel):
 class ShipmentBase(BaseModel):
     delivery_note_numbers: list[str]
     carrier_id: Optional[int] = None
-    email_id: str
+    email_id: Optional[str] = None
     email_subject: Optional[str] = None
-    email_date: datetime
+    email_date: Optional[datetime] = None
     process_date: str  # YYYY-MM-DD
 
 
@@ -99,6 +101,7 @@ class ShipmentOut(ShipmentBase):
     status: ShipmentStatus
     created_at: datetime
     documents: list[DocumentOut] = Field(default_factory=list)
+    tracking_url: Optional[str] = None   # vom Backend berechnet: tracking_url_template + tracking_number
 
     model_config = {"from_attributes": True}
 
