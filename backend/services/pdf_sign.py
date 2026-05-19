@@ -124,13 +124,25 @@ def embed_signature_in_pdf(
         "/Producer": "HandOver by Shoriu",
     })
 
-    # Speichern
+    # Speichern (Kollision → _1, _2 … anhängen)
     os.makedirs(archive_dir, exist_ok=True)
-    out_path = os.path.join(archive_dir, filename)
+    out_path = _unique_path(archive_dir, filename)
     with open(out_path, "wb") as f:
         writer.write(f)
 
     return out_path
+
+
+def _unique_path(directory: str, filename: str) -> str:
+    """Gibt einen Pfad zurück der noch nicht existiert.
+    Falls <filename> belegt ist, wird <stem>_1<ext>, <stem>_2<ext> … versucht."""
+    base, ext = os.path.splitext(filename)
+    candidate = os.path.join(directory, filename)
+    counter = 1
+    while os.path.exists(candidate):
+        candidate = os.path.join(directory, f"{base}_{counter}{ext}")
+        counter += 1
+    return candidate
 
 
 def _remove_white_bg(img: "Image") -> "Image":
