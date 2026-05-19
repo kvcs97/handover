@@ -130,6 +130,7 @@ def list_handovers(db: Session = Depends(get_db), user=Depends(get_current_user)
     handovers = (
         db.query(Handover)
         .options(joinedload(Handover.carrier))
+        .filter(Handover.status != "cancelled")
         .order_by(Handover.created_at.desc())
         .limit(100)
         .all()
@@ -173,6 +174,45 @@ def list_open_handovers(db: Session = Depends(get_db), user=Depends(get_current_
         }
         for h in handovers
     ]
+
+
+@router.patch("/{handover_id}/cancel")
+def cancel_handover(handover_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Offene Übergabe abbrechen (nur pending/printed)."""
+    h = db.query(Handover).filter(Handover.id == handover_id).first()
+    if not h:
+        raise HTTPException(status_code=404, detail="Übergabe nicht gefunden")
+    if h.status in ("signed", "archived"):
+        raise HTTPException(status_code=400, detail="Abgeschlossene Übergaben können nicht abgebrochen werden")
+    ref = h.referenz
+    h.status = "cancelled"
+    db.add(AuditLog(user_id=user.id, action="handover_cancelled", detail=ref))
+    db.commit()
+    return {"status": "cancelled"}
+
+
+@router.get("/{handover_id}/detail")
+def get_handover_detail(handover_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Einzelne Übergabe laden (für Resume-Modus im Dashboard)."""
+    h = (
+        db.query(Handover)
+        .options(joinedload(Handover.carrier))
+        .filter(Handover.id == handover_id)
+        .first()
+    )
+    if not h:
+        raise HTTPException(status_code=404, detail="Übergabe nicht gefunden")
+    return {
+        "id":          h.id,
+        "referenz":    h.referenz,
+        "driver_name": h.driver_name,
+        "truck_plate": h.truck_plate,
+        "status":      h.status,
+        "pdf_path":    h.pdf_path,
+        "created_at":  h.created_at.isoformat() if h.created_at else None,
+        "signed_at":   h.signed_at.isoformat() if h.signed_at else None,
+        "carrier":     {"id": h.carrier.id, "company_name": h.carrier.company_name} if h.carrier else None,
+    }
 
 
 @router.get("/{handover_id}/pdf")

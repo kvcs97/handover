@@ -88,7 +88,7 @@
           <div class="meta-row" v-if="selectedHandover.signed_at"><span>Unterzeichnet</span><strong>{{ formatDate(selectedHandover.signed_at) }}</strong></div>
         </div>
         <div class="preview-actions">
-          <button class="btn-action primary" v-if="pdfUrl" @click="openPdf(selectedHandover)">📄 Öffnen</button>
+          <button class="btn-action primary" v-if="selectedHandover?.pdf_path" @click="openPdf(selectedHandover)">📄 Öffnen</button>
           <button class="btn-action" v-if="pdfUrl" @click="downloadPdf(selectedHandover)">⬇ Download</button>
         </div>
         <div class="pdf-embed-wrap" v-if="pdfUrl"><iframe :src="pdfUrl" class="pdf-embed" frameborder="0"></iframe></div>

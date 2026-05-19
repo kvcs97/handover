@@ -239,6 +239,8 @@ import api from '../api'
 import { useSettingsStore } from '../stores/settings'
 import { useAuthStore } from '../stores/auth'
 
+const props = defineProps({ resumeId: { type: Number, default: null } })
+
 const settingsStore = useSettingsStore()
 const authStore = useAuthStore()
 
@@ -502,7 +504,37 @@ function reset() {
   nextTick(() => refInput.value?.focus())
 }
 
-onMounted(() => { refInput.value?.focus(); window.addEventListener('keydown', handleKey) })
+onMounted(async () => {
+  window.addEventListener('keydown', handleKey)
+  if (props.resumeId) {
+    await loadResumeHandover(props.resumeId)
+  } else {
+    refInput.value?.focus()
+  }
+})
+
+async function loadResumeHandover(id) {
+  try {
+    const res = await api.get(`/handover/${id}/detail`)
+    const h = res.data
+    referenz.value      = h.referenz
+    handoverId.value    = h.id
+    driverName.value    = h.driver_name || ''
+    truckPlate.value    = h.truck_plate || ''
+    isOutlookSource.value = false
+    if (h.carrier) {
+      selectedCarrier.value = h.carrier
+      carrierSearch.value   = h.carrier.company_name
+    }
+    printDone.value = true
+    currentStep.value = signStep.value
+    await nextTick()
+    initCanvas()
+  } catch (e) {
+    console.error('Übergabe konnte nicht geladen werden:', e)
+    refInput.value?.focus()
+  }
+}
 onUnmounted(() => window.removeEventListener('keydown', handleKey))
 </script>
 

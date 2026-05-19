@@ -167,7 +167,7 @@ def get_attachment(referenz: str, attachment_id: str, db: Session = Depends(get_
 def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
     try:
         from services.outlook_service import get_pdf_bytes
-        from services.pdf_sign import embed_signature_in_pdf
+        from services.pdf_sign import embed_signature_in_pdf, _unique_path
         from services.printer import print_document
     except ImportError as e:
         raise HTTPException(status_code=503, detail=f"Bibliothek nicht verfügbar: {e}")
@@ -186,7 +186,7 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
                 signed_path = embed_signature_in_pdf(
                     pdf_bytes=pdf_bytes, signature_png_base64=data.signature_png,
                     signer_name=data.signer_name, archive_dir=archive_dir,
-                    filename=f"signed_{safe_name}",
+                    filename=os.path.basename(_unique_path(archive_dir, f"signed_{safe_name}")),
                     carrier_name=data.carrier_name or "",
                     truck_plate=data.truck_plate or "",
                     employee_name=data.employee_name or "",

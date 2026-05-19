@@ -26,25 +26,48 @@ def print_document(pdf_path: str, db=None, printer_name: str = None):
 
     if system == "Windows":
         # Methode 1: SumatraPDF (falls installiert) — zuverlässiger
-        sumatra = r"C:\Program Files\SumatraPDF\SumatraPDF.exe"
-        if os.path.exists(sumatra):
-            subprocess.run([sumatra, "-print-to", printer_name, pdf_path], check=True)
+        sumatra_paths = [
+            r"C:\Program Files\SumatraPDF\SumatraPDF.exe",
+            r"C:\Program Files (x86)\SumatraPDF\SumatraPDF.exe",
+        ]
+        sumatra = next((p for p in sumatra_paths if os.path.exists(p)), None)
+        if sumatra:
+            result = subprocess.run(
+                [sumatra, "-print-to", printer_name, pdf_path],
+                capture_output=True, text=True, timeout=60
+            )
+            if result.returncode != 0:
+                stderr = result.stderr.strip()
+                stdout = result.stdout.strip()
+                raise RuntimeError(
+                    f"SumatraPDF Druckfehler (Code {result.returncode})"
+                    + (f": {stderr}" if stderr else "")
+                    + (f" [{stdout}]" if stdout else "")
+                )
         else:
             # Methode 2: Start-Process -Verb PrintTo — silent zur Queue, kein Dialog
-            # Single-quoted PS-Strings: einfache Anführungszeichen im Wert verdoppeln
+            # Zuerst prüfen ob der Drucker bekannt ist
             safe_pdf     = pdf_path.replace("'", "''")
             safe_printer = printer_name.replace("'", "''")
             ps_cmd = (
                 f"$pdf = '{safe_pdf}'; "
                 f"$printer = '{safe_printer}'; "
+                f"$known = (Get-Printer | Select-Object -ExpandProperty Name); "
+                f"if ($known -notcontains $printer) {{ throw \"Drucker '$printer' nicht gefunden. Verfuegbar: \" + ($known -join ', ') }}; "
                 f"Start-Process -FilePath $pdf -Verb PrintTo -ArgumentList $printer -Wait -ErrorAction Stop"
             )
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", ps_cmd],
-                capture_output=True, text=True, timeout=30
+                capture_output=True, text=True, timeout=60
             )
             if result.returncode != 0:
-                raise RuntimeError(result.stderr.strip() or "Druckfehler (unbekannt)")
+                stderr = (result.stderr or "").strip()
+                stdout = (result.stdout or "").strip()
+                raise RuntimeError(
+                    f"Druckfehler (Code {result.returncode})"
+                    + (f": {stderr}" if stderr else "")
+                    + (f" [{stdout}]" if stdout and stdout != stderr else "")
+                )
 
     elif system == "Darwin":
         if printer_name:

@@ -8,7 +8,7 @@ export const useSettingsStore = defineStore('settings', () => {
   async function load() {
     try {
       const res = await api.get('/settings/global')
-      companyName.value = res.data.company_name || 'HandOver'
+      companyName.value = res.data.company_name || 'Meine Firma'
     } catch {}
   }
 

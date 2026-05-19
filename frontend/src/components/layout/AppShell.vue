@@ -69,8 +69,8 @@
       </template>
       <!-- LKW-Modus (bestehend) -->
       <template v-else>
-        <Dashboard      v-if="currentPage === 'dashboard'" @navigate="currentPage = $event" />
-        <HandoverPage   v-else-if="currentPage === 'handover'" />
+        <Dashboard      v-if="currentPage === 'dashboard'" @navigate="handleNavigate" />
+        <HandoverPage   v-else-if="currentPage === 'handover'" :resume-id="resumeHandoverId" />
         <ArchivePage    v-else-if="currentPage === 'archive'" />
         <StatisticsPage v-else-if="currentPage === 'statistics'" />
         <UsersPage      v-else-if="currentPage === 'users' && authStore.isAdmin" />
@@ -99,7 +99,8 @@ import CourierArchive   from '../../pages/CourierArchive.vue'
 const authStore     = useAuthStore()
 const settingsStore = useSettingsStore()
 const courierStore  = useCourierStore()
-const currentPage   = ref('dashboard')
+const currentPage        = ref('dashboard')
+const resumeHandoverId   = ref(null)
 
 const workflowItems = computed(() =>
   courierStore.mode === 'courier'
@@ -120,6 +121,7 @@ const adminItems = [
 
 onMounted(() => {
   courierStore.applyDefaultModeFromSettings()
+  settingsStore.load()
 })
 
 const roleLabel = computed(() => ({
@@ -135,7 +137,18 @@ function hasRole(required) {
 }
 function navigate(item) {
   if (item.role && !hasRole(item.role)) return
+  resumeHandoverId.value = null
   currentPage.value = item.page
+}
+
+function handleNavigate(evt) {
+  if (typeof evt === 'string') {
+    resumeHandoverId.value = null
+    currentPage.value = evt
+  } else {
+    resumeHandoverId.value = evt.resumeId || null
+    currentPage.value = evt.page
+  }
 }
 </script>
 
