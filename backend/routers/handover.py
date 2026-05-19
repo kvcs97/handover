@@ -100,24 +100,25 @@ def sign_handover(data: SignatureSubmit, db: Session = Depends(get_db), user=Dep
     handover.status = "signed"
     db.commit()
 
-    # PDF generieren — Fehler blockiert Workflow nicht, wird aber zurückgegeben
-    pdf_path = None
+    # PDF generieren — überspringen wenn pdf_path bereits gesetzt (Outlook-Modus)
+    pdf_path = handover.pdf_path
     pdf_error = None
-    try:
-        pdf_path = generate_pdf(
-            handover, db,
-            signature=data.png_data,
-            employee_name=data.employee_name,
-            sign_date=data.sign_date,
-        )
-        handover.pdf_path = pdf_path
-        handover.status = "archived"
-        db.commit()
-    except Exception as e:
-        import traceback
-        pdf_error = str(e)
-        print(f"[ERROR] PDF-Generierung fehlgeschlagen: {e}")
-        traceback.print_exc()
+    if not pdf_path:
+        try:
+            pdf_path = generate_pdf(
+                handover, db,
+                signature=data.png_data,
+                employee_name=data.employee_name,
+                sign_date=data.sign_date,
+            )
+            handover.pdf_path = pdf_path
+        except Exception as e:
+            import traceback
+            pdf_error = str(e)
+            print(f"[ERROR] PDF-Generierung fehlgeschlagen: {e}")
+            traceback.print_exc()
+    handover.status = "archived"
+    db.commit()
 
     db.add(AuditLog(user_id=user.id, handover_id=handover.id, action="signed", detail=data.signer_name))
     db.commit()
