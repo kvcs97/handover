@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db, Setting
+from database import get_db, Setting, Handover
 from routers.auth import get_current_user, require_admin
 from pydantic import BaseModel
 from typing import List, Optional
@@ -207,5 +207,20 @@ def process_attachments(data: SignPdfRequest, db: Session = Depends(get_db), use
                 results.append({"name": att["name"], "status": "printed"})
             except Exception as e:
                 results.append({"name": att["name"], "status": "error", "error": str(e)})
+
+    # Link das erste signierte PDF zum Handover-Record → Archiv zeigt das korrekte Dokument
+    first_signed = next((r["path"] for r in results if r.get("status") == "signed"), None)
+    if first_signed and data.referenz:
+        from sqlalchemy import desc
+        h = (
+            db.query(Handover)
+            .filter(Handover.referenz == data.referenz)
+            .filter(Handover.status.in_(["pending", "printed"]))
+            .order_by(desc(Handover.id))
+            .first()
+        )
+        if h:
+            h.pdf_path = first_signed
+            db.commit()
 
     return {"results": results}

@@ -1,5 +1,5 @@
 <template>
-  <div class="handover-page">
+  <div class="handover-page" :style="pageZoom > 1 ? { zoom: pageZoom } : {}">
 
     <div class="page-header">
       <p class="page-eyebrow">Workflow</p>
@@ -276,6 +276,15 @@ const previewName        = ref('')
 
 const refInput = ref(null)
 
+// ── Vollbild-Skalierung (LKW-Modus) ───────────
+const windowWidth = ref(window.innerWidth)
+const pageZoom = computed(() => {
+  const mainW = windowWidth.value - 240  // Sidebar abziehen
+  if (mainW <= 1100) return 1
+  return Math.min(1.5, mainW / 1100)
+})
+function onWinResize() { windowWidth.value = window.innerWidth }
+
 // ── Steps (dynamisch je nach Datenquelle) ──────
 const visibleSteps = computed(() => {
   if (isOutlookSource.value) {
@@ -419,12 +428,24 @@ function initCanvas() {
   ctx = canvas.getContext('2d')
   ctx.strokeStyle = '#1c1c1e'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
 }
-function getPos(e, canvas) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top } }
+function getPos(e, canvas) {
+  const r = canvas.getBoundingClientRect()
+  return {
+    x: (e.clientX - r.left) * (canvas.width / r.width),
+    y: (e.clientY - r.top)  * (canvas.height / r.height),
+  }
+}
 function startDraw(e) { drawing = true; const p = getPos(e, sigCanvas.value); ctx.beginPath(); ctx.moveTo(p.x, p.y) }
 function draw(e) { if (!drawing) return; const p = getPos(e, sigCanvas.value); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSig.value = true }
 function stopDraw() { drawing = false }
-function startDrawTouch(e) { drawing = true; const t = e.touches[0]; const r = sigCanvas.value.getBoundingClientRect(); ctx.beginPath(); ctx.moveTo(t.clientX - r.left, t.clientY - r.top) }
-function drawTouch(e) { if (!drawing) return; const t = e.touches[0]; const r = sigCanvas.value.getBoundingClientRect(); ctx.lineTo(t.clientX - r.left, t.clientY - r.top); ctx.stroke(); hasSig.value = true }
+function startDrawTouch(e) {
+  drawing = true; const t = e.touches[0]; const c = sigCanvas.value; const r = c.getBoundingClientRect()
+  ctx.beginPath(); ctx.moveTo((t.clientX - r.left) * (c.width / r.width), (t.clientY - r.top) * (c.height / r.height))
+}
+function drawTouch(e) {
+  if (!drawing) return; const t = e.touches[0]; const c = sigCanvas.value; const r = c.getBoundingClientRect()
+  ctx.lineTo((t.clientX - r.left) * (c.width / r.width), (t.clientY - r.top) * (c.height / r.height)); ctx.stroke(); hasSig.value = true
+}
 function clearSig() { if (ctx) ctx.clearRect(0, 0, sigCanvas.value.width, sigCanvas.value.height); hasSig.value = false }
 
 // ── Submit Unterschrift ────────────────────────
@@ -506,6 +527,7 @@ function reset() {
 
 onMounted(async () => {
   window.addEventListener('keydown', handleKey)
+  window.addEventListener('resize', onWinResize)
   if (props.resumeId) {
     await loadResumeHandover(props.resumeId)
   } else {
@@ -535,13 +557,16 @@ async function loadResumeHandover(id) {
     refInput.value?.focus()
   }
 }
-onUnmounted(() => window.removeEventListener('keydown', handleKey))
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKey)
+  window.removeEventListener('resize', onWinResize)
+})
 </script>
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-.handover-page { padding: 24px 32px; max-width: 900px; font-family: 'DM Sans', sans-serif; }
+.handover-page { padding: 24px 32px; max-width: 900px; margin: 0 auto; font-family: 'DM Sans', sans-serif; }
 
 .page-header { margin-bottom: 32px; animation: fadeUp 0.4s ease both; }
 .page-eyebrow { font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: #98989f; margin-bottom: 5px; }
