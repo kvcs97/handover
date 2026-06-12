@@ -16,9 +16,15 @@ def _get_config(db: Session):
     return _get_setting(db, "pkl_bin_id"), _get_setting(db, "pkl_api_key")
 
 
+_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Accept":     "application/json",
+}
+
+
 def _fetch_record(bin_id: str, api_key: str):
     url = f"https://api.jsonbin.io/v3/b/{bin_id}/latest"
-    req = urllib.request.Request(url, headers={"X-Master-Key": api_key})
+    req = urllib.request.Request(url, headers={**_HEADERS, "X-Master-Key": api_key})
     try:
         with urllib.request.urlopen(req, timeout=PKL_TIMEOUT) as resp:
             return _json.loads(resp.read()).get("record", {})
@@ -90,10 +96,7 @@ def delete_pkl_entry(db: Session, referenz: str) -> bool:
     req = urllib.request.Request(
         put_url,
         data=payload,
-        headers={
-            "X-Master-Key": api_key,
-            "Content-Type": "application/json",
-        },
+        headers={**_HEADERS, "X-Master-Key": api_key, "Content-Type": "application/json"},
         method="PUT",
     )
     try:
