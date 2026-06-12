@@ -123,7 +123,18 @@ def sign_handover(data: SignatureSubmit, db: Session = Depends(get_db), user=Dep
     db.add(AuditLog(user_id=user.id, handover_id=handover.id, action="signed", detail=data.signer_name))
     db.commit()
 
-    return {"status": handover.status, "pdf_path": pdf_path, "pdf_error": pdf_error}
+    # PKL-Eintrag automatisch löschen
+    pkl_warn = None
+    try:
+        from services.pkl_service import delete_pkl_entry
+        ok = delete_pkl_entry(db, handover.referenz)
+        if not ok:
+            pkl_warn = "PKL-Eintrag konnte nicht gelöscht werden – bitte manuell in PKL Übersicht leeren."
+    except Exception as e:
+        pkl_warn = "PKL-Eintrag konnte nicht gelöscht werden – bitte manuell in PKL Übersicht leeren."
+        print(f"[WARN] PKL-Löschung fehlgeschlagen: {e}")
+
+    return {"status": handover.status, "pdf_path": pdf_path, "pdf_error": pdf_error, "pkl_warn": pkl_warn}
 
 
 @router.get("/list")
