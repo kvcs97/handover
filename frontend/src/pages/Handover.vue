@@ -6,6 +6,12 @@
       <h1 class="page-title">Neue <em>Übergabe</em></h1>
     </div>
 
+    <!-- PKL Lagerort-Banner -->
+    <div class="pkl-banner" v-if="currentStep > 0 && pklLocations.length">
+      <span class="pkl-icon">📦</span>
+      <span>Lagerort: <strong>{{ pklLocations.join('  |  ') }}</strong></span>
+    </div>
+
     <!-- Step Indicator -->
     <div class="step-indicator">
       <div v-for="(s, i) in visibleSteps" :key="i" class="step-item" :class="{ active: currentStep === i, done: currentStep > i }">
@@ -215,6 +221,10 @@
             <strong>{{ signedPdfs.length }} Datei(en)</strong>
           </div>
         </div>
+        <div class="pkl-warn-box" v-if="pklWarn">
+          <span>⚠</span>
+          <p>{{ pklWarn }}</p>
+        </div>
         <button class="btn-next" @click="reset">✦ Neue Übergabe starten</button>
       </div>
     </div>
@@ -265,6 +275,10 @@ const submitting     = ref(false)
 const archivedAt     = ref('')
 const printError     = ref(null)
 
+// PKL Lagerort
+const pklLocations = ref([])
+const pklWarn      = ref('')
+
 // Outlook
 const isOutlookSource    = ref(false)
 const attachments        = ref([])
@@ -313,6 +327,16 @@ function selectCarrier(c) { selectedCarrier.value = c; carrierSearch.value = c.c
 async function createCarrier() { const res = await api.post('/carriers/', { company_name: carrierSearch.value }); selectedCarrier.value = res.data; showDropdown.value = false }
 function onBlur() { setTimeout(() => { showDropdown.value = false }, 150) }
 
+// ── PKL Lookup (fire-and-forget) ───────────────
+async function fetchPklLocation(ref) {
+  try {
+    const res = await api.get(`/pkl/lookup/${encodeURIComponent(ref)}`)
+    pklLocations.value = res.data.locations || []
+  } catch (e) {
+    pklLocations.value = []
+  }
+}
+
 // ── Step 0: Referenz ───────────────────────────
 async function loadOrder() {
   if (!referenz.value) return
@@ -330,6 +354,9 @@ async function loadOrder() {
   await new Promise(r => setTimeout(r, 400))
   loadingOrder.value = false
   currentStep.value = 1
+
+  // PKL Lookup asynchron — kein Blocking
+  fetchPklLocation(referenz.value)
 
   // Wenn Outlook: E-Mails suchen
   if (isOutlookSource.value) {
@@ -502,6 +529,10 @@ async function submitSignature() {
     if (signRes.data?.pdf_error) {
       throw new Error('PDF-Generierung fehlgeschlagen: ' + signRes.data.pdf_error)
     }
+    if (signRes.data?.pkl_warn) {
+      console.warn('[PKL]', signRes.data.pkl_warn)
+      pklWarn.value = signRes.data.pkl_warn
+    }
 
     archivedAt.value = new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })
     currentStep.value = doneStep.value
@@ -522,6 +553,8 @@ function reset() {
   printError.value = null
   attachments.value = []; signIndices.value = []; signedPdfs.value = []
   isOutlookSource.value = false; previewUrl.value = null
+  pklLocations.value = []
+  pklWarn.value = ''
   nextTick(() => refInput.value?.focus())
 }
 
@@ -550,6 +583,7 @@ async function loadResumeHandover(id) {
     }
     printDone.value = true
     currentStep.value = signStep.value
+    fetchPklLocation(h.referenz)
     await nextTick()
     initCanvas()
   } catch (e) {
@@ -572,6 +606,13 @@ onUnmounted(() => {
 .page-eyebrow { font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: #98989f; margin-bottom: 5px; }
 .page-title { font-family: 'Instrument Serif', serif; font-size: 38px; font-weight: 400; color: #1c1c1e; letter-spacing: -1px; }
 .page-title em { font-style: italic; color: #c0546a; }
+
+.pkl-banner { display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: rgba(0,122,255,0.07); border: 1.5px solid rgba(0,122,255,0.18); border-radius: 12px; font-size: 14px; color: #004ecc; margin-bottom: 24px; animation: fadeUp 0.3s ease both; }
+.pkl-banner .pkl-icon { font-size: 18px; flex-shrink: 0; }
+.pkl-banner strong { color: #003ea3; }
+.pkl-warn-box { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; background: rgba(255,149,0,0.09); border: 1px solid rgba(255,149,0,0.3); border-radius: 10px; font-size: 13px; color: #8a5500; margin-bottom: 16px; width: 100%; text-align: left; }
+.pkl-warn-box span { font-size: 16px; flex-shrink: 0; }
+.pkl-warn-box p { margin: 0; }
 
 .step-indicator { display: flex; align-items: center; margin-bottom: 44px; animation: fadeUp 0.4s ease 0.1s both; flex-wrap: wrap; gap: 4px; }
 .step-item { display: flex; align-items: center; gap: 8px; }

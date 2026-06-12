@@ -90,6 +90,8 @@ SAFE_KEYS = [
     "archive_path",
     # Kurier-Modul
     "courier_mailbox", "courier_archive_path", "courier_default_mode",
+    # PKL Übersicht Integration
+    "pkl_bin_id", "pkl_api_key",
 ]
 
 

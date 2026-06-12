@@ -289,6 +289,25 @@
         </div>
       </div>
 
+      <!-- ── PKL Übersicht Integration ── -->
+      <div class="settings-card" v-if="auth.isAdmin">
+        <div class="card-title-row">
+          <span class="card-icon">📦</span>
+          <h2 class="card-title">PKL Übersicht</h2>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label>JSONBin Bin-ID</label>
+            <input v-model="form.pkl_bin_id" type="text" class="input" placeholder="6a2807caf5f4af5e29d1937c" />
+          </div>
+          <div class="field">
+            <label>JSONBin API-Key</label>
+            <input v-model="form.pkl_api_key" type="password" class="input" placeholder="••••••••" autocomplete="off" />
+          </div>
+          <p class="field-hint">Lagerort wird automatisch beim Öffnen einer Sendung angezeigt. Bei Archivierung wird der PKL-Eintrag automatisch gelöscht.</p>
+        </div>
+      </div>
+
       <!-- ── Carrier-Konfiguration (Kurier-Modul) ── -->
       <CarrierConfig v-if="auth.isAdmin" />
 
@@ -468,6 +487,8 @@ const form = ref({
   courier_mailbox: '',
   courier_archive_path: '',
   courier_default_mode: 'lkw',
+  pkl_bin_id:  '',
+  pkl_api_key: '',
 })
 
 const sourceTypes = [
@@ -494,7 +515,7 @@ const saveError = ref('')
 
 // Felder die nicht überschrieben werden sollen wenn leer
 // (gespeicherten Wert nicht wegwerfen wenn Formular leer geladen wurde)
-const PROTECTED_IF_EMPTY = ['outlook_password']
+const PROTECTED_IF_EMPTY = ['outlook_password', 'pkl_api_key']
 
 async function saveAll() {
   if (!form.value.company_name) {
@@ -684,6 +705,7 @@ async function activateLicense() {
 .fields { display: flex; flex-direction: column; gap: 16px; }
 .field  { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 12px; font-weight: 500; color: #1d1d1f; text-transform: uppercase; letter-spacing: 0.04em; }
+.field-hint { font-size: 12px; color: #98989f; line-height: 1.5; margin: 0; }
 
 .input { padding: 12px 16px; border: 1.5px solid #e8e8ed; border-radius: 11px; font-family: 'DM Sans', sans-serif; font-size: 15px; color: #1d1d1f; outline: none; background: white; transition: border-color 0.2s, box-shadow 0.2s; width: 100%; }
 .input:focus { border-color: #c0546a; box-shadow: 0 0 0 3px rgba(192,84,106,0.1); }
