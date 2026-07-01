@@ -4,7 +4,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">Einstellungen</h1>
-        <p class="page-sub">Firmendaten, Drucker und Datenquelle</p>
+        <p class="page-sub">{{ auth.isAdmin ? 'Firmendaten, Drucker und Datenquelle' : 'Mein Konto' }}</p>
         <p class="admin-hint" v-if="auth.isAdmin">Diese Einstellungen gelten für alle Benutzer</p>
       </div>
       <button class="btn-save" v-if="auth.isAdmin" @click="saveAll" :disabled="saving">
@@ -16,7 +16,7 @@
     <div class="settings-grid">
 
       <!-- ── Firmendaten ── -->
-      <div class="settings-card">
+      <div class="settings-card" v-if="auth.isAdmin">
         <div class="card-title-row">
           <span class="card-icon">🏢</span>
           <h2 class="card-title">Firmendaten</h2>
@@ -54,7 +54,7 @@
       </div>
 
       <!-- ── Drucker ── -->
-      <div class="settings-card">
+      <div class="settings-card" v-if="auth.isAdmin">
         <div class="card-title-row">
           <span class="card-icon">🖨️</span>
           <h2 class="card-title">Drucker</h2>
@@ -88,7 +88,7 @@
       </div>
 
       <!-- ── Datenquelle ── -->
-      <div class="settings-card">
+      <div class="settings-card" v-if="auth.isAdmin">
         <div class="card-title-row">
           <span class="card-icon">📡</span>
           <h2 class="card-title">Datenquelle</h2>
@@ -242,7 +242,7 @@
       </div>
 
       <!-- ── Kurier-Modul ── -->
-      <div class="settings-card">
+      <div class="settings-card" v-if="auth.isAdmin">
         <div class="card-title-row">
           <span class="card-icon">📦</span>
           <h2 class="card-title">Kurier-Modul</h2>

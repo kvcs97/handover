@@ -8,15 +8,20 @@ import base64
 from email.header import decode_header
 
 
+_TOKEN_KEYS = {"outlook_access_token", "outlook_refresh_token"}
+
+
 def get_outlook_config(db) -> dict:
     from database import Setting
+    from services.dpapi import decrypt as dpapi_decrypt
     keys = ["outlook_type", "outlook_email", "outlook_password",
             "outlook_tenant_id", "outlook_client_id", "outlook_server",
             "outlook_imap_server", "outlook_access_token", "outlook_refresh_token"]
     result = {}
     for key in keys:
         s = db.query(Setting).filter(Setting.key == key).first()
-        result[key] = s.value if s and s.value else ""
+        raw = s.value if s and s.value else ""
+        result[key] = dpapi_decrypt(raw) if key in _TOKEN_KEYS else raw
     return result
 
 
@@ -40,14 +45,16 @@ def _refresh_access_token(config: dict, db) -> str:
     if "access_token" not in result:
         raise Exception(result.get("error_description", "Token-Refresh fehlgeschlagen — bitte erneut anmelden"))
 
+    from services.dpapi import encrypt as dpapi_encrypt
+
     def set_setting(key, value):
         s = db.query(Setting).filter(Setting.key == key).first()
         if s: s.value = value
         else: db.add(Setting(key=key, value=value))
 
-    set_setting("outlook_access_token", result["access_token"])
+    set_setting("outlook_access_token", dpapi_encrypt(result["access_token"]))
     if "refresh_token" in result:
-        set_setting("outlook_refresh_token", result["refresh_token"])
+        set_setting("outlook_refresh_token", dpapi_encrypt(result["refresh_token"]))
     db.commit()
 
     return result["access_token"]

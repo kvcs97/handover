@@ -83,15 +83,17 @@ def complete_oauth_login(data: OutlookTokenRequest, db: Session = Depends(get_db
         if "access_token" not in result:
             raise HTTPException(status_code=400, detail=result.get("error_description", "Login fehlgeschlagen"))
 
-        # Token in DB speichern
+        # Token verschlüsselt in DB speichern
+        from services.dpapi import encrypt as dpapi_encrypt
+
         def set_setting(key, value):
             s = db.query(Setting).filter(Setting.key == key).first()
             if s: s.value = value
             else: db.add(Setting(key=key, value=value))
 
-        set_setting("outlook_access_token", result["access_token"])
+        set_setting("outlook_access_token", dpapi_encrypt(result["access_token"]))
         if "refresh_token" in result:
-            set_setting("outlook_refresh_token", result["refresh_token"])
+            set_setting("outlook_refresh_token", dpapi_encrypt(result["refresh_token"]))
         db.commit()
 
         return {"status": "ok", "message": "Erfolgreich mit Microsoft angemeldet"}
@@ -118,8 +120,10 @@ def test_outlook_connection(data: OutlookTestRequest, db: Session = Depends(get_
             if not token_setting or not token_setting.value:
                 raise Exception("Kein OAuth2 Token — bitte zuerst 'Mit Microsoft anmelden' klicken")
 
+            from services.dpapi import decrypt as dpapi_decrypt
+            access_token = dpapi_decrypt(token_setting.value)
             imap_server = data.outlook_imap_server or "outlook.office365.com"
-            auth_bytes  = f"user={data.outlook_email}\x01auth=Bearer {token_setting.value}\x01\x01".encode()
+            auth_bytes  = f"user={data.outlook_email}\x01auth=Bearer {access_token}\x01\x01".encode()
 
             import imaplib
             mail = imaplib.IMAP4_SSL(imap_server, 993)

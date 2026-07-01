@@ -65,7 +65,7 @@
         <CourierArchive   v-else-if="currentPage === 'archive'" />
         <StatisticsPage   v-else-if="currentPage === 'statistics'" />
         <UsersPage        v-else-if="currentPage === 'users' && authStore.isAdmin" />
-        <SettingsPage     v-else-if="currentPage === 'settings' && authStore.isAdmin" />
+        <SettingsPage     v-else-if="currentPage === 'settings'" />
       </template>
       <!-- LKW-Modus (bestehend) -->
       <template v-else>
@@ -74,7 +74,7 @@
         <ArchivePage    v-else-if="currentPage === 'archive'" />
         <StatisticsPage v-else-if="currentPage === 'statistics'" />
         <UsersPage      v-else-if="currentPage === 'users' && authStore.isAdmin" />
-        <SettingsPage   v-else-if="currentPage === 'settings' && authStore.isAdmin" />
+        <SettingsPage   v-else-if="currentPage === 'settings'" />
       </template>
     </main>
 
@@ -116,7 +116,7 @@ const adminItems = [
   { page: 'archive',    icon: '🗂',  label: 'Archiv' },
   { page: 'statistics', icon: '📊',  label: 'Statistik' },
   { page: 'users',      icon: '👤',  label: 'Benutzer',      role: 'admin' },
-  { page: 'settings',   icon: '⚙️',  label: 'Einstellungen', role: 'admin' },
+  { page: 'settings',   icon: '⚙️',  label: 'Einstellungen', role: 'operator' },
 ]
 
 onMounted(() => {

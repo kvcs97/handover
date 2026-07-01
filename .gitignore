@@ -22,6 +22,7 @@ handover-concept.md
 handover-courier-concept.md
 HandOver_Verbesserungen.md
 HandOver_PKL_Integration.md
+SICHERHEIT_KRITIKPUNKTE.md
 
 # ── Lizenzsystem (entfernt ab v1.16) ──────────
 backend/generate_license.py
