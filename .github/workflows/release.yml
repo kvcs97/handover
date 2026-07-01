@@ -65,6 +65,12 @@ jobs:
             exit 1
           }
 
+      - name: Normalize signing key (strip line breaks from GitHub Secret paste)
+        shell: powershell
+        run: |
+          $key = ($env:TAURI_SIGNING_PRIVATE_KEY) -replace "`r`n","" -replace "`n","" -replace "`r",""
+          "TAURI_SIGNING_PRIVATE_KEY=$key" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install --legacy-peer-deps
@@ -87,7 +93,7 @@ jobs:
           }
           Write-Host ""
           Write-Host "=== target\release\ (top level) ==="
-          Get-ChildItem "frontend\src-tauri\target\release\" -File | Select-Object Name, Length | Format-Table
+          Get-ChildItem "frontend\src-tauri\target\release" -File | Select-Object Name, Length | Format-Table
 
       - name: Create GitHub Release + Upload Installer
         shell: powershell
