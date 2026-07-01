@@ -28,6 +28,10 @@ backend/generate_license.py
 backend/services/license_service.py
 backend/routers/license_router.py
 
+# ── Tauri Updater Private Keys ────────────────
+*.key
+!*.key.pub
+
 # ── Persönliche / Temporäre Dateien ───────────
 *.txt
 !README.txt
