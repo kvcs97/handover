@@ -12,19 +12,37 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin    = computed(() => userRole.value === 'admin')
   const isViewer   = computed(() => userRole.value === 'viewer')
 
+  function _applyToken(data) {
+    token.value    = data.access_token
+    userName.value = data.user_name
+    userRole.value = data.user_role
+    userId.value   = data.user_id ?? null
+    localStorage.setItem('handover_user', userName.value)
+    localStorage.setItem('handover_role', userRole.value)
+    if (userId.value) localStorage.setItem('handover_uid', String(userId.value))
+    api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
+  }
+
   async function login(email, password) {
     const form = new URLSearchParams()
     form.append('username', email)
     form.append('password', password)
     const res = await api.post('/auth/login', form)
-    token.value    = res.data.access_token
-    userName.value = res.data.user_name
-    userRole.value = res.data.user_role
-    userId.value   = res.data.user_id ?? null
-    localStorage.setItem('handover_user',  userName.value)
-    localStorage.setItem('handover_role',  userRole.value)
-    if (userId.value) localStorage.setItem('handover_uid', String(userId.value))
-    api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
+    if (res.data.requires_password_change) {
+      const err = new Error('PASSWORD_CHANGE_REQUIRED')
+      err.code = 'PASSWORD_CHANGE_REQUIRED'
+      throw err
+    }
+    _applyToken(res.data)
+  }
+
+  async function upgradePassword(email, currentPassword, newPassword) {
+    const res = await api.post('/auth/upgrade-password', {
+      email,
+      current_password: currentPassword,
+      new_password:     newPassword,
+    })
+    _applyToken(res.data)
   }
 
   function logout() {
@@ -52,5 +70,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { token, userName, userRole, userId, isLoggedIn, isAdmin, isViewer, login, logout, restore }
+  return { token, userName, userRole, userId, isLoggedIn, isAdmin, isViewer, login, logout, restore, upgradePassword }
 })

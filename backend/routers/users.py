@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db, User
-from routers.auth import require_admin, hash_password
+from routers.auth import require_admin, hash_password, validate_password
 from pydantic import BaseModel
 from typing import Optional
 
@@ -27,6 +27,7 @@ def list_users(db: Session = Depends(get_db), admin=Depends(require_admin)):
 def create_user(data: UserCreate, db: Session = Depends(get_db), admin=Depends(require_admin)):
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="E-Mail bereits vergeben")
+    validate_password(data.password)
     user = User(
         name=data.name,
         email=data.email,
@@ -46,7 +47,9 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), a
     if data.name:     user.name = data.name
     if data.role:     user.role = data.role
     if data.active is not None: user.active = data.active
-    if data.password: user.password_hash = hash_password(data.password)
+    if data.password:
+        validate_password(data.password)
+        user.password_hash = hash_password(data.password)
     db.commit()
     return {"status": "updated"}
 

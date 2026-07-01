@@ -1,14 +1,34 @@
-# Dependencies
+# ── Frontend ──────────────────────────────────
 frontend/node_modules/
 
-# Tauri build output
+# ── Tauri Build Output ────────────────────────
 frontend/src-tauri/target/
-
-# Sidecar binary (built in CI)
 frontend/src-tauri/binaries/
 
-# Python
-backend/__pycache__/
+# ── Python ────────────────────────────────────
+**/__pycache__/
+**/*.pyc
+**/*.pyo
 backend/build/
 backend/dist/
-*.pyc
+*.spec
+
+# ── Interne Entwicklungsdokumente ─────────────
+handover-tracker.md
+handover-claude-code-briefing.md
+handover-courier-tracker.md
+handover-fixes-v1.md
+handover-concept.md
+handover-courier-concept.md
+HandOver_Verbesserungen.md
+HandOver_PKL_Integration.md
+
+# ── Lizenzsystem (entfernt ab v1.16) ──────────
+backend/generate_license.py
+backend/services/license_service.py
+backend/routers/license_router.py
+
+# ── Persönliche / Temporäre Dateien ───────────
+*.txt
+!README.txt
+EIgene\ Lizenzschlüssel.png

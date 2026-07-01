@@ -311,6 +311,37 @@
       <!-- ── Carrier-Konfiguration (Kurier-Modul) ── -->
       <CarrierConfig v-if="auth.isAdmin" />
 
+      <!-- ── Datensicherung ── -->
+      <div class="settings-card" v-if="auth.isAdmin">
+        <div class="card-title-row">
+          <span class="card-icon">💾</span>
+          <h2 class="card-title">Datensicherung</h2>
+        </div>
+        <div class="fields">
+          <div class="box info">
+            <span>ℹ️</span>
+            <div>Automatisches Backup täglich um 17:30 Uhr. Die letzten 30 Tage werden aufbewahrt.</div>
+          </div>
+          <div class="field">
+            <label>Backup-Zielordner</label>
+            <div class="input-with-btn">
+              <input v-model="form.backup_path" type="text" class="input" placeholder="Z:\Backup\HandOver" />
+              <button class="btn-browse" @click="pickBackupFolder">Ordner wählen</button>
+            </div>
+          </div>
+          <div class="backup-status ok"   v-if="lastBackup">✓ Letztes Backup: {{ lastBackup }}</div>
+          <div class="backup-status warn" v-else-if="form.backup_path">⚠ Noch kein Backup erstellt</div>
+          <div class="test-row">
+            <button class="btn-test" @click="backupNow" :disabled="backingUp || !form.backup_path">
+              <span v-if="!backingUp">💾 Backup jetzt erstellen</span>
+              <span v-else>Sicherung läuft…</span>
+            </button>
+            <span class="test-result success" v-if="backupResult === 'ok'">✓ Backup erstellt</span>
+            <span class="test-result error"   v-if="backupResult === 'err'">✗ Backup fehlgeschlagen</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Passwort ändern ── -->
       <div class="settings-card">
         <div class="card-title-row">
@@ -327,7 +358,13 @@
           </div>
           <div class="field">
             <label>Neues Passwort</label>
-            <input v-model="newPassword" :type="showPw ? 'text' : 'password'" class="input" placeholder="Mindestens 8 Zeichen" autocomplete="new-password" />
+            <input v-model="newPassword" :type="showPw ? 'text' : 'password'" class="input" placeholder="Min. 12 Zeichen, Großbuchstabe, Zahl, Sonderzeichen" autocomplete="new-password" />
+          </div>
+          <div class="pw-policy" v-if="newPassword">
+            <span :class="{ ok: newPassword.length >= 12 }">Mindestens 12 Zeichen</span>
+            <span :class="{ ok: /[A-Z]/.test(newPassword) }">Großbuchstabe</span>
+            <span :class="{ ok: /\d/.test(newPassword) }">Zahl</span>
+            <span :class="{ ok: /[^A-Za-z0-9]/.test(newPassword) }">Sonderzeichen</span>
           </div>
           <div class="field">
             <label>Passwort bestätigen</label>
@@ -343,40 +380,6 @@
         </div>
       </div>
 
-      <!-- ── Lizenz ── -->
-      <div class="settings-card">
-        <div class="card-title-row">
-          <span class="card-icon">🔑</span>
-          <h2 class="card-title">Lizenz</h2>
-        </div>
-        <div class="fields">
-          <div class="license-status" v-if="licenseInfo">
-            <div class="license-valid" v-if="licenseInfo.valid">
-              <div class="license-badge valid">✓ Aktiv</div>
-              <div class="license-details">
-                <div class="meta-row"><span>Plan</span><strong>{{ licenseInfo.plan === 'complete' ? 'Complete' : 'Essential' }}</strong></div>
-                <div class="meta-row"><span>Kunde</span><strong>{{ licenseInfo.customer }}</strong></div>
-                <div class="meta-row"><span>Läuft ab</span><strong>{{ licenseInfo.expires }}</strong></div>
-                <div class="meta-row"><span>Verbleibend</span><strong :class="licenseInfo.days_left < 30 ? 'text-warn' : ''">{{ licenseInfo.days_left }} Tage</strong></div>
-              </div>
-            </div>
-            <div v-else>
-              <div class="license-badge invalid">✗ Ungültig</div>
-              <p class="license-error">{{ licenseInfo.error }}</p>
-            </div>
-          </div>
-          <div class="field">
-            <label>Lizenzschlüssel eingeben</label>
-            <input v-model="licenseKey" type="text" class="input license-input" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" />
-          </div>
-          <button class="btn-activate" @click="activateLicense" :disabled="!licenseKey || activating">
-            <span v-if="!activating">🔑 Lizenz aktivieren</span>
-            <span v-else class="spinner-sm"></span>
-          </button>
-          <div class="box error"   v-if="licenseError">⚠️ {{ licenseError }}</div>
-          <div class="box success" v-if="licenseSuccess">✅ Lizenz erfolgreich aktiviert!</div>
-        </div>
-      </div>
 
     </div>
 
@@ -395,7 +398,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import api from '../api'
 import { useAuthStore } from '../stores/auth'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
@@ -467,6 +470,11 @@ const pwError     = ref('')
 const changingPw  = ref(false)
 const logoPreview = ref('')
 
+// Backup
+const lastBackup  = ref('')
+const backingUp   = ref(false)
+const backupResult = ref('')
+
 const form = ref({
   company_name:     '',
   company_address:  '',
@@ -489,6 +497,7 @@ const form = ref({
   courier_default_mode: 'lkw',
   pkl_bin_id:  '',
   pkl_api_key: '',
+  backup_path: '',
 })
 
 const sourceTypes = [
@@ -576,6 +585,36 @@ async function pickCourierArchiveFolder() {
   if (selected) form.value.courier_archive_path = selected
 }
 
+async function pickBackupFolder() {
+  const selected = await openDialog({ directory: true, multiple: false })
+  if (selected) form.value.backup_path = selected
+}
+
+async function loadBackupStatus() {
+  try {
+    const res = await api.get('/backup/status')
+    if (res.data.last_backup) {
+      const [y, m, d] = res.data.last_backup.split('-')
+      lastBackup.value = `${d}.${m}.${y}`
+    }
+  } catch {}
+}
+
+async function backupNow() {
+  backingUp.value = true; backupResult.value = ''
+  try {
+    await api.post('/backup/now')
+    backupResult.value = 'ok'
+    const today = new Date()
+    lastBackup.value = today.toLocaleDateString('de-CH')
+  } catch {
+    backupResult.value = 'err'
+  } finally {
+    backingUp.value = false
+    setTimeout(() => backupResult.value = '', 4000)
+  }
+}
+
 async function testPrint() {
   testingPrint.value = true
   testResult.value = ''
@@ -615,10 +654,6 @@ async function testOutlook() {
 async function changePassword() {
   pwError.value = ''
   pwChanged.value = false
-  if (newPassword.value.length < 8) {
-    pwError.value = 'Mindestens 8 Zeichen erforderlich'
-    return
-  }
   if (newPassword.value !== newPasswordConfirm.value) {
     pwError.value = 'Passwörter stimmen nicht überein'
     return
@@ -648,36 +683,8 @@ function onPrinterSelected(name) {
 
 onMounted(async () => {
   await loadSettings()
-  await loadLicense()
+  await loadBackupStatus()
 })
-
-// ── Lizenz ────────────────────────────────────
-const licenseKey     = ref('')
-const licenseInfo    = ref(null)
-const licenseError   = ref('')
-const licenseSuccess = ref(false)
-const activating     = ref(false)
-
-async function loadLicense() {
-  try {
-    const res = await api.get('/license/status')
-    licenseInfo.value = res.data
-  } catch {}
-}
-
-async function activateLicense() {
-  licenseError.value = ''; licenseSuccess.value = false; activating.value = true
-  try {
-    const res = await api.post('/license/activate', { license_key: licenseKey.value })
-    licenseInfo.value = res.data
-    licenseSuccess.value = true
-    licenseKey.value = ''
-    setTimeout(() => licenseSuccess.value = false, 4000)
-  } catch (e) {
-    licenseError.value = e.response?.data?.detail || 'Aktivierung fehlgeschlagen'
-    setTimeout(() => licenseError.value = '', 4000)
-  } finally { activating.value = false }
-}
 </script>
 
 <style scoped>
@@ -775,6 +782,16 @@ async function activateLicense() {
 .btn-change-pw:hover:not(:disabled) { background: #000; }
 .btn-change-pw:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* Backup */
+.backup-status { font-size: 13px; font-weight: 500; padding: 8px 12px; border-radius: 8px; }
+.backup-status.ok   { background: rgba(40,200,64,0.08); color: #1a6e28; }
+.backup-status.warn { background: rgba(255,149,0,0.08); color: #b86e00; }
+
+/* Passwort-Policy */
+.pw-policy { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; }
+.pw-policy span { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; background: #f2f2f7; color: #98989f; transition: background 0.2s, color 0.2s; }
+.pw-policy span.ok { background: rgba(40,200,64,0.1); color: #1a6e28; }
+
 /* Boxes */
 .box { border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; display: flex; gap: 8px; }
 .box.info    { background: rgba(192,84,106,0.06);  border: 1px solid rgba(192,84,106,0.15);  color: #8a2a3e; }
@@ -799,17 +816,7 @@ async function activateLicense() {
 .device-flow { display: flex; flex-direction: column; gap: 10px; }
 .device-flow-actions { display: flex; gap: 8px; }
 .device-code { background: #f5f5f7; padding: 2px 8px; border-radius: 6px; font-family: monospace; font-size: 15px; font-weight: 700; color: #c0546a; letter-spacing: 0.05em; }
-.license-status { margin-bottom: 8px; }
-.license-badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 980px; margin-bottom: 12px; }
-.license-badge.valid   { background: rgba(40,167,69,0.1); color: #1a7a2e; }
-.license-badge.invalid { background: rgba(255,59,48,0.1); color: #c0392b; }
-.license-details { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
-.license-error { font-size: 13px; color: #c0392b; margin-top: 4px; }
-.license-input { font-family: monospace !important; letter-spacing: 0.08em; }
 .text-warn { color: #c07800; }
-.btn-activate { padding: 11px 20px; background: linear-gradient(135deg, #e8849a, #c0546a); color: white; border: none; border-radius: 11px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 10px rgba(192,84,106,0.25); align-self: flex-start; }
-.btn-activate:hover:not(:disabled) { opacity: 0.9; }
-.btn-activate:disabled { opacity: 0.4; cursor: not-allowed; }
 @keyframes spin   { to { transform: rotate(360deg); } }
 </style>
 

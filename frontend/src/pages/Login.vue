@@ -25,7 +25,9 @@
 
     <!-- Right Panel -->
     <div class="right-panel">
-      <div class="login-card">
+
+      <!-- Login -->
+      <div class="login-card" v-if="!needsUpgrade">
         <h2 class="login-title">Willkommen zurück</h2>
         <p class="login-sub">Melde dich mit deinem Account an</p>
 
@@ -37,7 +39,7 @@
               type="email"
               class="input"
               placeholder="name@firma.ch"
-              @keyup.enter="login"
+              @keyup.enter="doLogin"
               :disabled="loading"
             />
           </div>
@@ -49,7 +51,7 @@
                 :type="showPw ? 'text' : 'password'"
                 class="input"
                 placeholder="••••••••"
-                @keyup.enter="login"
+                @keyup.enter="doLogin"
                 :disabled="loading"
               />
               <button type="button" class="pw-toggle" @click="showPw = !showPw">
@@ -61,34 +63,121 @@
 
         <div class="error-box" v-if="error">{{ error }}</div>
 
-        <button class="btn-login" @click="login" :disabled="loading || !email || !password">
+        <button class="btn-login" @click="doLogin" :disabled="loading || !email || !password">
           <span v-if="!loading">Anmelden</span>
           <span v-else class="spinner"></span>
         </button>
       </div>
+
+      <!-- Passwort-Upgrade -->
+      <div class="login-card" v-else>
+        <h2 class="login-title">Passwort aktualisieren</h2>
+        <p class="login-sub">Dein Passwort erfüllt nicht mehr die Sicherheitsanforderungen.</p>
+
+        <div class="policy-box">
+          <div class="policy-item" :class="{ ok: newPw.length >= 12 }">
+            <span class="policy-dot"></span> Mindestens 12 Zeichen
+          </div>
+          <div class="policy-item" :class="{ ok: /[A-Z]/.test(newPw) }">
+            <span class="policy-dot"></span> Mindestens 1 Großbuchstabe
+          </div>
+          <div class="policy-item" :class="{ ok: /\d/.test(newPw) }">
+            <span class="policy-dot"></span> Mindestens 1 Zahl
+          </div>
+          <div class="policy-item" :class="{ ok: /[^A-Za-z0-9]/.test(newPw) }">
+            <span class="policy-dot"></span> Mindestens 1 Sonderzeichen
+          </div>
+        </div>
+
+        <div class="fields">
+          <div class="field">
+            <label>Neues Passwort</label>
+            <div class="pw-wrap">
+              <input
+                v-model="newPw"
+                :type="showNewPw ? 'text' : 'password'"
+                class="input"
+                placeholder="••••••••••••"
+                @keyup.enter="doUpgrade"
+                :disabled="loading"
+              />
+              <button type="button" class="pw-toggle" @click="showNewPw = !showNewPw">
+                {{ showNewPw ? '🙈' : '👁️' }}
+              </button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Passwort bestätigen</label>
+            <input
+              v-model="confirmPw"
+              type="password"
+              class="input"
+              placeholder="••••••••••••"
+              @keyup.enter="doUpgrade"
+              :disabled="loading"
+            />
+          </div>
+        </div>
+
+        <div class="error-box" v-if="upgradeError">{{ upgradeError }}</div>
+        <div class="mismatch-box" v-if="confirmPw && newPw !== confirmPw">Passwörter stimmen nicht überein</div>
+
+        <button class="btn-login" @click="doUpgrade" :disabled="loading || !policyMet || newPw !== confirmPw">
+          <span v-if="!loading">Passwort speichern &amp; anmelden</span>
+          <span v-else class="spinner"></span>
+        </button>
+        <button class="btn-back" @click="needsUpgrade = false; upgradeError = ''">Zurück zum Login</button>
+      </div>
+
     </div>
 
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
-const email    = ref('')
-const password = ref('')
-const loading  = ref(false)
-const error    = ref('')
-const showPw   = ref(false)
+const email       = ref('')
+const password    = ref('')
+const loading     = ref(false)
+const error       = ref('')
+const showPw      = ref(false)
+const needsUpgrade = ref(false)
+const newPw       = ref('')
+const confirmPw   = ref('')
+const showNewPw   = ref(false)
+const upgradeError = ref('')
 
-async function login() {
+const policyMet = computed(() =>
+  newPw.value.length >= 12 &&
+  /[A-Z]/.test(newPw.value) &&
+  /\d/.test(newPw.value) &&
+  /[^A-Za-z0-9]/.test(newPw.value)
+)
+
+async function doLogin() {
   if (!email.value || !password.value) return
   loading.value = true; error.value = ''
   try {
     await authStore.login(email.value, password.value)
   } catch (e) {
-    error.value = e.response?.data?.detail || 'Anmeldung fehlgeschlagen'
+    if (e.code === 'PASSWORD_CHANGE_REQUIRED') {
+      needsUpgrade.value = true
+    } else {
+      error.value = e.response?.data?.detail || 'Anmeldung fehlgeschlagen'
+    }
+  } finally { loading.value = false }
+}
+
+async function doUpgrade() {
+  if (!policyMet.value || newPw.value !== confirmPw.value) return
+  loading.value = true; upgradeError.value = ''
+  try {
+    await authStore.upgradePassword(email.value, password.value, newPw.value)
+  } catch (e) {
+    upgradeError.value = e.response?.data?.detail || 'Passwort konnte nicht gesetzt werden'
   } finally { loading.value = false }
 }
 </script>
@@ -161,7 +250,17 @@ async function login() {
 .pw-wrap .input { padding-right: 44px; }
 .pw-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 16px; }
 
-.error-box { background: rgba(255,59,48,0.07); border: 1px solid rgba(255,59,48,0.2); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #c0392b; margin-bottom: 16px; }
+.error-box    { background: rgba(255,59,48,0.07); border: 1px solid rgba(255,59,48,0.2); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #c0392b; margin-bottom: 16px; }
+.mismatch-box { background: rgba(255,149,0,0.07); border: 1px solid rgba(255,149,0,0.25); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #b86e00; margin-bottom: 16px; }
+
+.policy-box { background: #f9f9fb; border: 1.5px solid #e8e8ed; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
+.policy-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #98989f; transition: color 0.2s; }
+.policy-item.ok { color: #1c7a3e; }
+.policy-dot { width: 7px; height: 7px; border-radius: 50%; background: #d0d0d8; flex-shrink: 0; transition: background 0.2s; }
+.policy-item.ok .policy-dot { background: #34c759; }
+
+.btn-back { width: 100%; margin-top: 10px; padding: 11px; background: none; border: 1.5px solid #e8e8ed; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: #636366; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.btn-back:hover { border-color: #c0546a; color: #c0546a; }
 
 .btn-login {
   width: 100%; padding: 13px;
