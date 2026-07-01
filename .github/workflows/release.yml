@@ -54,6 +54,7 @@ jobs:
         shell: cmd
 
       - name: Verify sidecar exists
+        shell: powershell
         run: |
           $path = "frontend\src-tauri\binaries\handover-backend-x86_64-pc-windows-msvc.exe"
           if (Test-Path $path) {
@@ -63,23 +64,52 @@ jobs:
             Write-Error "ERROR: sidecar NOT found!"
             exit 1
           }
-        shell: powershell
 
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install --legacy-peer-deps
 
       - name: Build Tauri app
-        id: tauri
-        uses: tauri-apps/tauri-action@v0
-        continue-on-error: true   # tauri-action failt manchmal beim latest.json-Upload trotz fertigem Build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: frontend
+        run: npm run tauri build -- --verbose
+        shell: powershell
+
+      - name: Debug — Bundle-Verzeichnis anzeigen
+        if: always()
+        shell: powershell
+        run: |
+          $bundleDir = "frontend\src-tauri\target\release\bundle"
+          Write-Host "=== Bundle directory: $bundleDir ==="
+          if (Test-Path $bundleDir) {
+            Get-ChildItem -Recurse $bundleDir | Select-Object FullName, Length | Format-Table
+          } else {
+            Write-Host "BUNDLE DIRECTORY DOES NOT EXIST — build failed before bundling"
+          }
+          Write-Host ""
+          Write-Host "=== target\release\ (top level) ==="
+          Get-ChildItem "frontend\src-tauri\target\release\" -File | Select-Object Name, Length | Format-Table
+
+      - name: Create GitHub Release + Upload Installer
+        shell: powershell
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $nsisExe  = "frontend\src-tauri\target\release\bundle\nsis\HandOver_${version}_x64-setup.exe"
+          $nsisSig  = "${nsisExe}.sig"
+          $msiFile  = "frontend\src-tauri\target\release\bundle\msi\HandOver_${version}_x64_en-US.msi"
+          $msiSig   = "${msiFile}.sig"
+
+          if (-not (Test-Path $nsisExe)) {
+            Write-Error "NSIS installer not found: $nsisExe"
+            exit 1
+          }
+          Write-Host "NSIS installer found: $(Get-Item $nsisExe | Select-Object -ExpandProperty Length) bytes"
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
         with:
-          projectPath: frontend
-          tagName: ${{ github.ref_name }}
-          releaseName: 'HandOver ${{ github.ref_name }}'
-          releaseBody: |
+          tag_name: ${{ github.ref_name }}
+          name: HandOver ${{ github.ref_name }}
+          body: |
             ## HandOver ${{ github.ref_name }}
 
             ### Installation
@@ -87,47 +117,53 @@ jobs:
             - **Ohne Installer (Portable):** `HandOver_*_portable.zip` herunterladen, entpacken, `HandOver.exe` starten
 
             > Automatisches Update über den Update-Banner in der App verfügbar.
-          releaseDraft: false
-          prerelease: false
-          includeUpdaterJson: true
+          files: |
+            frontend/src-tauri/target/release/bundle/nsis/*.exe
+            frontend/src-tauri/target/release/bundle/nsis/*.sig
+            frontend/src-tauri/target/release/bundle/msi/*.msi
+            frontend/src-tauri/target/release/bundle/msi/*.sig
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate latest.json (fallback wenn tauri-action den Upload verkackt)
-        if: steps.tauri.outcome != 'success'
+      - name: Generate latest.json
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
-          $msiPath = "frontend\src-tauri\target\release\bundle\msi\HandOver_${version}_x64_en-US.msi"
-          $exePath = "frontend\src-tauri\target\release\bundle\nsis\HandOver_${version}_x64-setup.exe"
+          $nsisExe = "frontend\src-tauri\target\release\bundle\nsis\HandOver_${version}_x64-setup.exe"
+          $msiFile = "frontend\src-tauri\target\release\bundle\msi\HandOver_${version}_x64_en-US.msi"
 
-          if (-not (Test-Path "${msiPath}.sig") -or -not (Test-Path "${exePath}.sig")) {
-            Write-Host "Bundle-Sigs nicht gefunden - Build vorher fehlgeschlagen, skip"
-            exit 0
+          $nsisSig = if (Test-Path "${nsisExe}.sig") { (Get-Content "${nsisExe}.sig" -Raw).Trim() } else { "" }
+          $msiSig  = if (Test-Path "${msiFile}.sig")  { (Get-Content "${msiFile}.sig"  -Raw).Trim() } else { "" }
+
+          if (-not $nsisSig -and -not $msiSig) {
+            Write-Error "Keine .sig Dateien gefunden — kann latest.json nicht erstellen"
+            exit 1
           }
 
-          $msiSig  = (Get-Content "${msiPath}.sig" -Raw).Trim()
-          $exeSig  = (Get-Content "${exePath}.sig" -Raw).Trim()
           $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-          $msiUrl  = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/HandOver_${version}_x64_en-US.msi"
-          $exeUrl  = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/HandOver_${version}_x64-setup.exe"
+          $baseUrl = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+
+          $platforms = [ordered]@{}
+          if ($nsisSig) {
+            $platforms["windows-x86_64"]      = [ordered]@{ signature = $nsisSig; url = "$baseUrl/HandOver_${version}_x64-setup.exe" }
+            $platforms["windows-x86_64-nsis"] = [ordered]@{ signature = $nsisSig; url = "$baseUrl/HandOver_${version}_x64-setup.exe" }
+          }
+          if ($msiSig) {
+            $platforms["windows-x86_64-msi"]  = [ordered]@{ signature = $msiSig; url = "$baseUrl/HandOver_${version}_x64_en-US.msi" }
+          }
 
           $json = [ordered]@{
             version  = $version
             notes    = "HandOver ${{ github.ref_name }}"
             pub_date = $pubDate
-            platforms = [ordered]@{
-              "windows-x86_64"      = [ordered]@{ signature = $msiSig; url = $msiUrl }
-              "windows-x86_64-msi"  = [ordered]@{ signature = $msiSig; url = $msiUrl }
-              "windows-x86_64-nsis" = [ordered]@{ signature = $exeSig; url = $exeUrl }
-            }
+            platforms = $platforms
           } | ConvertTo-Json -Depth 10
 
-          $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($json)
-          [System.IO.File]::WriteAllBytes("latest.json", $bytes)
-          Write-Host "latest.json generiert"
+          [System.IO.File]::WriteAllBytes("latest.json", [System.Text.UTF8Encoding]::new($false).GetBytes($json))
+          Write-Host "latest.json:"
           Get-Content latest.json
 
-      - name: Upload latest.json (idempotent — überschreibt falls schon vorhanden)
-        if: hashFiles('latest.json') != ''
+      - name: Upload latest.json
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -136,24 +172,25 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build portable ZIP
+        shell: powershell
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
           $portableDir = "HandOver_portable"
-
-          # Ordner erstellen
           New-Item -ItemType Directory -Force -Path $portableDir
 
-          # Hauptapp + Sidecar-Backend kopieren
           Copy-Item "frontend\src-tauri\target\release\handover.exe" "$portableDir\HandOver.exe"
-          Copy-Item "frontend\src-tauri\target\release\handover-backend.exe" "$portableDir\handover-backend.exe"
 
-          # start.bat für einfaches Starten
+          # Sidecar aus binaries-Ordner kopieren (target\release hat kein handover-backend.exe)
+          $sidecar = "frontend\src-tauri\binaries\handover-backend-x86_64-pc-windows-msvc.exe"
+          if (Test-Path $sidecar) {
+            Copy-Item $sidecar "$portableDir\handover-backend.exe"
+          }
+
           @"
           @echo off
           start "" HandOver.exe
           "@ | Out-File -FilePath "$portableDir\start.bat" -Encoding ASCII
 
-          # README
           @"
           HandOver ${{ github.ref_name }} — Portable Version
           ===================================================
@@ -168,17 +205,14 @@ jobs:
           © 2026 Shoriu
           "@ | Out-File -FilePath "$portableDir\README.txt" -Encoding UTF8
 
-          # ZIP erstellen
           $zipName = "HandOver_${version}_portable.zip"
           Compress-Archive -Path "$portableDir\*" -DestinationPath $zipName -Force
+          Write-Host "Portable ZIP: $zipName ($(Get-Item $zipName | Select-Object -ExpandProperty Length) bytes)"
 
-          Write-Host "Portable ZIP erstellt: $zipName"
-          Get-Item $zipName | Select-Object Name, Length
-        shell: powershell
-
-      - name: Upload portable ZIP to release
+      - name: Upload portable ZIP
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           files: HandOver_*_portable.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
