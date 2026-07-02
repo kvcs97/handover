@@ -37,7 +37,7 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
-      - name: Install GTK3/Pango für WeasyPrint (MSYS2)
+      - name: Install GTK3/Pango fuer WeasyPrint (MSYS2)
         run: C:\msys64\usr\bin\pacman.exe --noconfirm -S mingw-w64-x86_64-pango
         shell: cmd
 
@@ -54,7 +54,7 @@ jobs:
         shell: cmd
 
       - name: Verify sidecar exists
-        shell: powershell
+        shell: pwsh
         run: |
           $path = "frontend\src-tauri\binaries\handover-backend-x86_64-pc-windows-msvc.exe"
           if (Test-Path $path) {
@@ -66,7 +66,7 @@ jobs:
           }
 
       - name: Normalize signing key (strip line breaks from GitHub Secret paste)
-        shell: powershell
+        shell: pwsh
         run: |
           $key = ($env:TAURI_SIGNING_PRIVATE_KEY) -replace "`r`n","" -replace "`n","" -replace "`r",""
           "TAURI_SIGNING_PRIVATE_KEY=$key" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -78,25 +78,25 @@ jobs:
       - name: Build Tauri app
         working-directory: frontend
         run: npm run tauri build -- --verbose
-        shell: powershell
+        shell: pwsh
 
-      - name: Debug — Bundle-Verzeichnis anzeigen
+      - name: Debug - Bundle-Verzeichnis anzeigen
         if: always()
-        shell: powershell
+        shell: pwsh
         run: |
           $bundleDir = "frontend\src-tauri\target\release\bundle"
           Write-Host "=== Bundle directory: $bundleDir ==="
           if (Test-Path $bundleDir) {
             Get-ChildItem -Recurse $bundleDir | Select-Object FullName, Length | Format-Table
           } else {
-            Write-Host "BUNDLE DIRECTORY DOES NOT EXIST — build failed before bundling"
+            Write-Host "BUNDLE DIRECTORY DOES NOT EXIST - build failed before bundling"
           }
           Write-Host ""
           Write-Host "=== target\release\ (top level) ==="
           Get-ChildItem "frontend\src-tauri\target\release" -File | Select-Object Name, Length | Format-Table
 
       - name: Create GitHub Release + Upload Installer
-        shell: powershell
+        shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
           $nsisExe  = "frontend\src-tauri\target\release\bundle\nsis\HandOver_${version}_x64-setup.exe"
@@ -119,10 +119,10 @@ jobs:
             ## HandOver ${{ github.ref_name }}
 
             ### Installation
-            - **Standard:** `HandOver_*_x64-setup.exe` herunterladen und ausführen
+            - **Standard:** `HandOver_*_x64-setup.exe` herunterladen und ausfuehren
             - **Ohne Installer (Portable):** `HandOver_*_portable.zip` herunterladen, entpacken, `HandOver.exe` starten
 
-            > Automatisches Update über den Update-Banner in der App verfügbar.
+            > Automatisches Update ueber den Update-Banner in der App verfuegbar.
           files: |
             frontend/src-tauri/target/release/bundle/nsis/*.exe
             frontend/src-tauri/target/release/bundle/nsis/*.sig
@@ -142,7 +142,7 @@ jobs:
           $msiSig  = if (Test-Path "${msiFile}.sig")  { (Get-Content "${msiFile}.sig"  -Raw).Trim() } else { "" }
 
           if (-not $nsisSig -and -not $msiSig) {
-            Write-Error "Keine .sig Dateien gefunden — kann latest.json nicht erstellen"
+            Write-Error "Keine .sig Dateien gefunden - kann latest.json nicht erstellen"
             exit 1
           }
 
@@ -178,7 +178,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build portable ZIP
-        shell: powershell
+        shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
           $portableDir = "HandOver_portable"
@@ -198,17 +198,17 @@ jobs:
           "@ | Out-File -FilePath "$portableDir\start.bat" -Encoding ASCII
 
           @"
-          HandOver ${{ github.ref_name }} — Portable Version
+          HandOver ${{ github.ref_name }} - Portable Version
           ===================================================
-          Keine Installation nötig!
+          Keine Installation noetig!
 
           Starten: Doppelklick auf start.bat
           Oder:    HandOver.exe direkt starten
 
           Hinweis: Beim ersten Start kann Windows SmartScreen eine Warnung zeigen.
-          -> "Weitere Informationen" -> "Trotzdem ausführen" klicken.
+          -> "Weitere Informationen" -> "Trotzdem ausfuehren" klicken.
 
-          © 2026 Shoriu
+          (c) 2026 Shoriu
           "@ | Out-File -FilePath "$portableDir\README.txt" -Encoding UTF8
 
           $zipName = "HandOver_${version}_portable.zip"
