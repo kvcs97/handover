@@ -11,6 +11,9 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    # Tags mit Bindestrich (z.B. v1.16.0-beta.1, v1.16.0-rc1) -> staging, kein Approval
+    # Stabile Tags (z.B. v1.16.0) -> production, wartet auf manuelles Approval
+    environment: ${{ contains(github.ref_name, '-') && 'staging' || 'production' }}
 
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -115,6 +118,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: HandOver ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
           body: |
             ## HandOver ${{ github.ref_name }}
 
@@ -132,6 +136,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate latest.json
+        if: ${{ !contains(github.ref_name, '-') }}
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
@@ -170,6 +175,7 @@ jobs:
           Get-Content latest.json
 
       - name: Upload latest.json
+        if: ${{ !contains(github.ref_name, '-') }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
